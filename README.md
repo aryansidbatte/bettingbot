@@ -1,0 +1,2 @@
+# bettingbot
+Discord Betting Bot
