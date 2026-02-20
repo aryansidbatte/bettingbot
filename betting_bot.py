@@ -301,7 +301,7 @@ async def create_bet(ctx):
     c.execute("SELECT option_id, name FROM bet_options WHERE bet_id=?", (bet_id,))
     options = c.fetchall()
 
-    lines = [f"{idx}. {name} (Option ID: `{option_id}`)"
+    lines = [f"{idx}. {name}"
              for idx, (option_id, name) in enumerate(options, start=1)]
 
     embed = info_embed(
@@ -360,7 +360,7 @@ async def view_bets(ctx):
                 odds_str = "1.00x"
             lines.append(
                 f"{idx}. {name} "
-                f"(Option ID: `{option_id}`, Pool: {total_amount}, Payout: {odds_str})"
+                f"(Pool: {total_amount}, Payout: {odds_str})"
             )
 
         embed.add_field(
