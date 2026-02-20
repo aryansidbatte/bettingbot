@@ -57,6 +57,14 @@ CREATE TABLE IF NOT EXISTS wagers (
 )
 """)
 
+# Enforce at the database level that each user can only wager once per bet.
+# CREATE UNIQUE INDEX IF NOT EXISTS works on both new and existing databases,
+# so this migration is safe to run every time the bot starts.
+c.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wagers_bet_user
+ON wagers (bet_id, user_id)
+""")
+
 conn.commit()
 
 # ---------- Helper functions ----------
@@ -483,11 +491,28 @@ async def place_bet(ctx):
         await ctx.send(embed=error_embed(f"Insufficient points! You have {user_points} points."))
         return
 
+    # Re-check for a duplicate wager immediately before the INSERT to close
+    # the race-condition window that exists during the interactive flow.
     c.execute(
-        "INSERT INTO wagers (bet_id, option_id, user_id, amount) "
-        "VALUES (?, ?, ?, ?)",
-        (bet_id_db, option_id, str(ctx.author.id), amount),
+        "SELECT 1 FROM wagers WHERE bet_id=? AND user_id=?",
+        (bet_id_db, str(ctx.author.id)),
     )
+    if c.fetchone():
+        await ctx.send(embed=error_embed("You already placed a wager on this bet."))
+        return
+
+    try:
+        c.execute(
+            "INSERT INTO wagers (bet_id, option_id, user_id, amount) "
+            "VALUES (?, ?, ?, ?)",
+            (bet_id_db, option_id, str(ctx.author.id), amount),
+        )
+    except sqlite3.IntegrityError as e:
+        if "idx_wagers_bet_user" in str(e) or "wagers.bet_id" in str(e):
+            await ctx.send(embed=error_embed("You already placed a wager on this bet."))
+        else:
+            await ctx.send(embed=error_embed("Failed to place wager due to a database error."))
+        return
     c.execute(
         "UPDATE bet_options SET total_amount = total_amount + ? WHERE option_id=?",
         (amount, option_id),
