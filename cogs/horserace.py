@@ -1,4 +1,6 @@
 import asyncio
+import json
+import os
 import random
 
 import discord
@@ -7,13 +9,13 @@ from discord.ext import commands
 from database import get_user_points, update_points
 from helpers import info_embed, error_embed
 
-HORSE_NAMES = [
-    "Special Week", "Silence Suzuka", "Tokai Teio", "Mejiro McQueen",
-    "Gold Ship", "Oguri Cap", "Vodka", "Daiwa Scarlet",
-    "Seiun Sky", "El Condor Pasa", "Grass Wonder", "Haru Urara",
-    "Nice Nature", "Narita Brian", "Biwa Hayahide", "Sakura Bakushin O",
-    "Tamamo Cross", "Super Creek", "Air Groove", "Symboli Rudolf",
-]
+_data_path = os.path.join(os.path.dirname(__file__), "..", "data", "horses.json")
+with open(_data_path) as _f:
+    _horses = json.load(_f)
+
+HORSE_NAMES = _horses["names"]
+_BASE = _horses["base_url"]
+HORSE_IMAGES = {name: f"{_BASE}/{path}" for name, path in _horses["images"].items()}
 
 
 def build_progress_bar(progress: float, width: int = 20) -> str:
@@ -314,12 +316,16 @@ class HorseRace(commands.Cog):
                     display = f"<@{uid}>"
                 payout_lines.append(f"💰 {display}: **+{payout}** points (bet {amt})")
 
-        final_text = (
-            f"**🏁 Race Finished!**\n\n"
-            f"**Podium:**\n" + "\n".join(podium_lines) +
-            f"\n\n**Payouts:**\n" + "\n".join(payout_lines)
+        embed = discord.Embed(
+            title=f"🏁 {winner['name']} wins the race!",
+            color=discord.Color.gold(),
         )
-        await race_msg.edit(content=final_text)
+        embed.add_field(name="Podium", value="\n".join(podium_lines), inline=False)
+        embed.add_field(name="Payouts", value="\n".join(payout_lines), inline=False)
+        winner_image = HORSE_IMAGES.get(winner["name"])
+        if winner_image:
+            embed.set_image(url=winner_image)
+        await race_msg.edit(content="", embed=embed)
 
         del self.active_races[guild_id]
 
