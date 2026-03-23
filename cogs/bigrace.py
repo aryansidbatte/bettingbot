@@ -84,6 +84,12 @@ class BigRace(commands.Cog):
             discord.Color.green(),
         ))
 
+    @commands.command(name="testbigrace", help="(Admin) Trigger a big race in the current channel immediately")
+    @commands.has_permissions(manage_guild=True)
+    async def test_big_race(self, ctx):
+        import asyncio
+        asyncio.create_task(self._run_big_race(ctx.guild.id, ctx.channel.id))
+
     @commands.command(name="racenotify", help="Toggle daily big race notifications")
     async def race_notify(self, ctx):
         enrolled = toggle_enrollment(str(ctx.author.id), str(ctx.guild.id))
