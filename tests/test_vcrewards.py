@@ -128,3 +128,31 @@ class TestOnVoiceStateUpdate:
             await cog.on_voice_state_update(member, before, after)
 
         assert (100, 1) in cog.active_vc
+
+
+class TestOnReady:
+    async def test_on_ready_resyncs_active_vc(self, cog):
+        """on_ready should clear and rebuild active_vc from current guild state."""
+        # Seed stale state from a previous connection
+        cog.active_vc.add((100, 999))  # stale entry that should be cleared
+
+        # One guild, one non-AFK voice channel, one eligible member
+        channel = make_channel(555)
+        member = make_member(1, 100)
+        voice = MagicMock()
+        voice.self_deaf = False
+        member.voice = voice
+
+        guild = MagicMock()
+        guild.id = 100
+        guild.afk_channel = None
+        guild.voice_channels = [channel]
+        channel.members = [member]
+
+        cog.bot.guilds = [guild]
+
+        with patch("cogs.vcrewards.get_user_monies"):
+            await cog.on_ready()
+
+        assert (100, 999) not in cog.active_vc  # stale entry cleared
+        assert (100, 1) in cog.active_vc         # current member added

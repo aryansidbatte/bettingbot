@@ -29,6 +29,12 @@ class VCRewards(commands.Cog):
                     get_user_monies(member.id, guild.id)  # ensure row exists
 
     @commands.Cog.listener()
+    async def on_ready(self):
+        """Re-sync active_vc on reconnect so stale state is cleared."""
+        self.active_vc.clear()
+        await self._sync_active_vc()
+
+    @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         if member.bot:
             return
