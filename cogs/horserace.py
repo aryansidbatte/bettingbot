@@ -190,7 +190,7 @@ class HorseRace(commands.Cog):
         embed.set_footer(text="Odds are estimates only — actual payout is parimutuel.")
 
         await ctx.send(embed=embed)
-        await asyncio.sleep(10)
+        await asyncio.sleep(60)
         await self._run_race(ctx, guild_id)
 
     @commands.command(name="racebet", help="Bet on a horse: !racebet <horse_number> <amount>")
