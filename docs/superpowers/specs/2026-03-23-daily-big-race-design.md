@@ -7,17 +7,19 @@
 
 ## Overview
 
-A scheduled daily horse race that fires at 9am Pacific Time in each configured guild. Uses a separate premium currency called **carats** (🥕). Regular economy uses **monies**. Players can opt into push notifications via a toggle command.
+A scheduled daily horse race that fires at 9pm Pacific Time in each configured guild. Uses a separate premium currency called **carats** (displayed using `carat.png`). Regular economy uses **monies**. Players can opt into push notifications via a toggle command.
 
 ---
 
 ## Currency
 
 ### Rename: points → monies
-- Display-only. The `points` column in SQLite is not renamed.
+- The `points` column in `users` is renamed to `monies` in the new schema (DB is being deleted and recreated).
+- All DB helpers are updated: `get_user_points` → `get_user_monies`, `update_points` → `update_monies`.
+- All call sites across all cogs are updated accordingly.
 - Every user-facing embed that says "points" is updated to "monies": `!balance`, `!daily`, `!leaderboard`, `!racebet`, `!bet`, and all payout messages.
 
-### New currency: carats (🥕)
+### New currency: carats
 - Stored as `carats INTEGER NOT NULL DEFAULT 0` on the `users` table.
 - `get_user_carats(user_id, guild_id) -> int` and `update_carats(user_id, guild_id, new_total)` helpers (commit immediately, matching `update_points` behaviour).
 - Carats are only spendable on the big race; monies are only spendable on regular races and bets.
@@ -40,7 +42,7 @@ The existing `betting.db` at the repo root is deleted. The new path is `data/bet
 CREATE TABLE IF NOT EXISTS users (
     user_id   TEXT NOT NULL,
     guild_id  TEXT NOT NULL,
-    points    INTEGER NOT NULL DEFAULT 1000,
+    monies    INTEGER NOT NULL DEFAULT 1000,
     carats    INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id, guild_id)
 );
@@ -69,15 +71,17 @@ CREATE TABLE IF NOT EXISTS race_notifications (
 
 ### `add_daily_reward(user_id, guild_id, monies=100, carats=10) -> tuple[int, int]`
 Handles the write path only. On call:
-- If the user row does not exist: INSERT with `points=1000+monies, carats=carats, last_daily=now`.
-- If the row exists: UPDATE `points += monies, carats += carats, last_daily=now`.
-- Returns `(new_points, new_carats)`.
+- If the user row does not exist: INSERT with `monies=1000+monies, carats=carats, last_daily=now`.
+- If the row exists: UPDATE `monies += monies, carats += carats, last_daily=now`.
+- Returns `(new_monies, new_carats)`.
 
-`economy.py !daily` retains its own `c.execute` SELECT to read `points` and `last_daily` for the cooldown check and for displaying "X hours remaining" on the cooldown path. Only when the cooldown has passed does it call `add_daily_reward` and use the returned tuple for the confirmation embed. The raw INSERT/UPDATE in `economy.py` is removed; the SELECT is kept.
+`economy.py !daily` retains its own `c.execute` SELECT to read `monies` and `last_daily` for the cooldown check and for displaying "X hours remaining" on the cooldown path. Only when the cooldown has passed does it call `add_daily_reward` and use the returned tuple for the confirmation embed. The raw INSERT/UPDATE in `economy.py` is removed; the SELECT is kept.
 
-`!leaderboard` continues to use `c, conn` directly for its raw SELECT — that query is not refactored. The `from database import c, conn` import in `economy.py` remains.
+`!leaderboard` continues to use `c, conn` directly for its raw SELECT (column is now `monies`) — that query is not otherwise refactored. The `from database import c, conn` import in `economy.py` remains.
 
 ### New helpers
+- `get_user_monies(user_id, guild_id) -> int` (replaces `get_user_points`)
+- `update_monies(user_id, guild_id, new_total)` (replaces `update_points`)
 - `get_user_carats(user_id, guild_id) -> int`
 - `update_carats(user_id, guild_id, new_total)` — commits immediately
 - `get_race_channel(guild_id) -> str | None` — returns `None` if not configured
@@ -131,7 +135,7 @@ from zoneinfo import ZoneInfo
 import datetime
 from discord.ext import tasks
 
-@tasks.loop(time=datetime.time(9, 0, tzinfo=ZoneInfo("America/Los_Angeles")))
+@tasks.loop(time=datetime.time(21, 0, tzinfo=ZoneInfo("America/Los_Angeles")))
 async def daily_race(self):
     rows = get_all_race_configs()  # SELECT guild_id, channel_id FROM race_config
     for guild_id, channel_id in rows:
@@ -152,7 +156,7 @@ Each configured guild gets its own `asyncio.create_task`. No per-bot cap on conc
 #### `!racenotify`
 - Toggle notification enrollment.
 - Calls `toggle_enrollment(user_id, guild_id)`.
-- If newly enrolled: green embed — "✅ **You're in!** You'll be pinged before the daily big race at 9am PT."
+- If newly enrolled: green embed — "✅ **You're in!** You'll be pinged before the daily big race at 9pm PT."
 - If unenrolled: grey embed — "🔕 **Removed.** You won't be pinged for the daily big race."
 
 #### `!racebetbig <number> <amount>`
@@ -161,13 +165,13 @@ Each configured guild gets its own `asyncio.create_task`. No per-bot cap on conc
 - Validates: `amount > 0`, user has sufficient carats, horse number is valid, user hasn't already bet in this race.
 - One bet per user per race. No maximum bet cap.
 - Deducts carats immediately via `update_carats`.
-- Confirmation embed: "✅ Bet placed — **{amount}** 🥕 on **#{n} {horse name}**."
+- Confirmation embed: "✅ Bet placed — **{amount}** carats on **#{n} {horse name}**."
 
 ### `_run_big_race(guild_id, channel_id)`
 
 1. Fetch channel object via `self.bot.get_channel(channel_id)`. If `None` or bot lacks send permission, return silently.
 2. Fetch enrolled user IDs for the guild. For each, attempt `guild.get_member(user_id)`. Skip silently if member not found (left server). Build mention string from found members.
-3. If any enrolled members: send a plain message `"{mentions} 🥕 **The Daily Big Race is starting in 60 seconds — place your bets!**"` as a separate message before the betting embed.
+3. If any enrolled members: send a plain message `"{mentions} **The Daily Big Race is starting in 60 seconds — place your bets!**"` (no emoji — carat.png image appears in the betting embed that follows immediately after).
 4. Build horses, compute odds, send betting embed (purple, carat.png thumbnail, same field layout as `!race`).
 5. Wait 60 seconds.
 6. Set `betting_open = False`.
@@ -184,8 +188,9 @@ Each configured guild gets its own `asyncio.create_task`. No per-bot cap on conc
 
 - `carat.png` is an existing asset at `data/carat.png`. Each `_run_big_race` call opens its own `discord.File("data/carat.png", filename="carat.png")` instance.
 - Thumbnail: `embed.set_thumbnail(url="attachment://carat.png")`.
-- Title: "🥕 Daily Big Race!"
+- Title: "Daily Big Race!"
 - Color: `discord.Color.purple()`
+- No 🥕 emoji used anywhere — carat.png image serves as the visual currency indicator.
 
 ---
 
