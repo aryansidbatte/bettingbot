@@ -62,8 +62,24 @@ class Misc(commands.Cog):
             ),
             inline=False
         )
+        embed.add_field(
+            name="!race",
+            value=(
+                "Start a simulated Uma Musume horse race with a 60-second betting window.\n"
+                "4–6 horses are randomly selected with parimutuel odds."
+            ),
+            inline=False
+        )
+        embed.add_field(
+            name="!racebet <horse_number> <amount>",
+            value=(
+                "Bet on a horse during an active race’s betting window.\n"
+                "One bet per user per race. Points are deducted immediately."
+            ),
+            inline=False
+        )
 
-        embed.set_footer(text="Type 'cancel' during any interactive command to cancel it.")
+        embed.set_footer(text="Type ‘cancel’ during any interactive command to cancel it.")
         await ctx.send(embed=embed)
 
 async def setup(bot):

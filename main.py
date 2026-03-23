@@ -26,6 +26,7 @@ async def main():
         await bot.load_extension("cogs.economy")
         await bot.load_extension("cogs.betting")
         await bot.load_extension("cogs.misc")
+        await bot.load_extension("cogs.horserace")
         
         # Start bot
         await bot.start(TOKEN)

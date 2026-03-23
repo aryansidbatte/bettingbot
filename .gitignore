@@ -196,3 +196,11 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# macOS
+.DS_Store
+
+# Local tooling / Claude Code
+.claude/
+.claude-flow/
+.mcp.json
