@@ -1,13 +1,22 @@
 import pytest
-from cogs.horserace import simulate_race, build_progress_bar, format_race_progress
+from cogs.horserace import simulate_race, build_progress_bar, format_race_progress, estimate_win_rates
 
 
-def make_horses(weights=None):
+def make_horses(weights=None, staminas=None, consistencies=None):
     """Return a minimal horse list for testing."""
     weights = weights or [5, 5, 5, 5]
+    staminas = staminas or [5] * len(weights)
+    consistencies = consistencies or [5] * len(weights)
     return [
-        {"number": i + 1, "name": f"Horse {i + 1}", "weight": w, "bets": {}}
-        for i, w in enumerate(weights)
+        {
+            "number": i + 1,
+            "name": f"Horse {i + 1}",
+            "weight": w,
+            "stamina": s,
+            "consistency": c,
+            "bets": {},
+        }
+        for i, (w, s, c) in enumerate(zip(weights, staminas, consistencies))
     ]
 
 
@@ -51,23 +60,24 @@ class TestSimulateRace:
         finish_order, _ = simulate_race(horses)
         assert len(finish_order) == len(set(finish_order))
 
-    def test_snapshots_at_ticks_10_20_30(self):
+    def test_snapshots_at_10_percent_milestones(self):
         horses = make_horses()
         _, snapshots = simulate_race(horses)
-        assert set(snapshots.keys()) == {10, 20, 30}
+        expected = {round(x * 0.1, 1) for x in range(1, 10)}
+        assert set(snapshots.keys()) == expected
 
     def test_snapshot_contains_all_horses(self):
         horses = make_horses()
         _, snapshots = simulate_race(horses)
-        for tick, positions in snapshots.items():
+        for milestone, positions in snapshots.items():
             assert set(positions.keys()) == {h["number"] for h in horses}
 
     def test_positions_increase_over_time(self):
         horses = make_horses([10, 10])  # fast horses, all identical weight
         _, snapshots = simulate_race(horses)
         for horse_num in [1, 2]:
-            assert snapshots[10][horse_num] <= snapshots[20][horse_num]
-            assert snapshots[20][horse_num] <= snapshots[30][horse_num]
+            assert snapshots[0.1][horse_num] <= snapshots[0.5][horse_num]
+            assert snapshots[0.5][horse_num] <= snapshots[0.9][horse_num]
 
     def test_positions_capped_at_1(self):
         horses = make_horses([10, 10, 10, 10])
@@ -76,19 +86,59 @@ class TestSimulateRace:
             for pos in positions.values():
                 assert pos <= 1.0
 
+    def test_milestone_snapshots_are_accurate(self):
+        """Leader position at each snapshot should be >= the milestone value."""
+        horses = make_horses([5, 5, 5, 5])
+        _, snapshots = simulate_race(horses)
+        for milestone, positions in snapshots.items():
+            leader_pos = max(positions.values())
+            assert leader_pos >= milestone
+
     def test_heavier_horse_wins_more_often_than_lighter(self):
-        """Statistical: heavy horse (weight=10) should beat light (weight=1) most of the time."""
+        """Statistical: heavy horse (weight=9) should beat light (weight=4) more than 50% of the time."""
         wins = 0
-        trials = 200
+        trials = 300
         for _ in range(trials):
-            horses = [
-                {"number": 1, "name": "Heavy", "weight": 10, "bets": {}},
-                {"number": 2, "name": "Light", "weight": 1, "bets": {}},
-            ]
+            horses = make_horses(weights=[9, 4])
             finish_order, _ = simulate_race(horses)
             if finish_order[0] == 1:
                 wins += 1
-        assert wins > trials * 0.6, f"Expected heavy horse to win >60% but got {wins}/{trials}"
+        assert wins > trials * 0.55, f"Expected heavy horse to win >55% but got {wins}/{trials}"
+
+    def test_high_stamina_helps_over_low_stamina(self):
+        """Statistical: equal weight but high stamina should win more than low stamina."""
+        wins = 0
+        trials = 300
+        for _ in range(trials):
+            horses = make_horses(weights=[5, 5], staminas=[9, 4])
+            finish_order, _ = simulate_race(horses)
+            if finish_order[0] == 1:
+                wins += 1
+        assert wins > trials * 0.55, f"Expected high-stamina horse to win >55% but got {wins}/{trials}"
+
+
+class TestEstimateWinRates:
+    def test_returns_entry_for_each_horse(self):
+        horses = make_horses()
+        rates = estimate_win_rates(horses, trials=100)
+        assert set(rates.keys()) == {h["number"] for h in horses}
+
+    def test_win_rates_sum_to_1(self):
+        horses = make_horses()
+        rates = estimate_win_rates(horses, trials=200)
+        assert abs(sum(rates.values()) - 1.0) < 0.01
+
+    def test_all_rates_between_0_and_1(self):
+        horses = make_horses()
+        rates = estimate_win_rates(horses, trials=100)
+        for rate in rates.values():
+            assert 0.0 <= rate <= 1.0
+
+    def test_stronger_horse_has_higher_win_rate(self):
+        """Horse with weight=9, stamina=9 should have higher win rate than weight=4, stamina=4."""
+        horses = make_horses(weights=[9, 4], staminas=[9, 4])
+        rates = estimate_win_rates(horses, trials=300)
+        assert rates[1] > rates[2]
 
 
 class TestPayoutMath:

@@ -22,35 +22,92 @@ def build_progress_bar(progress: float, width: int = 20) -> str:
 
 
 def simulate_race(horses: list) -> tuple:
-    """Simulate 40 ticks. Returns (finish_order, snapshots).
+    """Simulate up to 200 ticks. Returns (finish_order, snapshots).
 
-    snapshots: {tick: {horse_num: float}} captured at ticks 10, 20, 30.
-    finish_order: list of horse numbers in finishing order.
+    Each horse has:
+      - weight (1-10): sets base speed
+      - stamina (1-10): higher = less speed decay as position increases
+      - consistency (1-10): higher = tighter noise range per tick
+
+    snapshots: {0.1, 0.2, ..., 0.9} captured when the leader first crosses
+    each milestone. finish_order: list of horse numbers in finishing order.
     """
     positions = {h["number"]: 0.0 for h in horses}
     finish_order = []
     finished = set()
     snapshots = {}
+    pending_milestones = [round(x * 0.1, 1) for x in range(1, 10)]  # 0.1 … 0.9
 
-    for tick in range(1, 41):
+    for tick in range(1, 201):
         for h in horses:
             if h["number"] in finished:
                 continue
-            speed = (h["weight"] / 20.0) + random.uniform(0, 0.08)
-            positions[h["number"]] = min(1.0, positions[h["number"]] + speed)
+            pos = positions[h["number"]]
+            # All horses share a base speed; weight gives a small ±adjustment
+            base = 0.055 + (h["weight"] - 5) * 0.0005
+            # Stamina: speed decays as position increases; high stamina = less decay
+            stamina_factor = 1.0 - (pos * (1.0 - h["stamina"] / 10.0) * 0.3)
+            # Consistency: centered noise — high = tight/predictable, low = wide/unpredictable
+            # Centered at 0 so consistency only affects variance, not average speed
+            half_range = 0.018 + (10 - h["consistency"]) * 0.003
+            noise = random.uniform(-half_range, half_range)
+            speed = max(0.001, (base * stamina_factor) + noise)
+            positions[h["number"]] = min(1.0, pos + speed)
             if positions[h["number"]] >= 1.0:
                 finished.add(h["number"])
                 finish_order.append(h["number"])
 
-        if tick in (10, 20, 30):
-            snapshots[tick] = dict(positions)
+        if pending_milestones:
+            leader_pos = max(positions.values())
+            while pending_milestones and leader_pos >= pending_milestones[0]:
+                snapshots[pending_milestones.pop(0)] = dict(positions)
 
-    # Any stragglers not yet in finish_order
+        if len(finished) == len(horses):
+            break
+
     for h in horses:
         if h["number"] not in finished:
             finish_order.append(h["number"])
 
     return finish_order, snapshots
+
+
+# Standard racing fractional odds, ordered from shortest to longest
+_STANDARD_FRACTIONS = [
+    (1, 4), (2, 7), (1, 3), (2, 5), (1, 2), (4, 7), (8, 13), (4, 6),
+    (8, 11), (4, 5), (5, 6), (10, 11), (1, 1),  # evens
+    (11, 10), (6, 5), (5, 4), (11, 8), (6, 4), (13, 8), (7, 4), (15, 8),
+    (2, 1), (85, 40), (9, 4), (5, 2), (11, 4), (3, 1), (100, 30),
+    (7, 2), (4, 1), (9, 2), (5, 1), (11, 2), (6, 1), (13, 2), (7, 1),
+    (15, 2), (8, 1), (9, 1), (10, 1), (12, 1), (14, 1), (16, 1), (20, 1),
+    (25, 1), (33, 1), (50, 1), (66, 1), (100, 1),
+]
+
+
+def to_fractional_odds(win_rate: float) -> str:
+    """Convert a win rate (0-1) to the nearest standard fractional odds string."""
+    if win_rate <= 0:
+        return "100-1"
+    raw = (1 - win_rate) / win_rate  # e.g. 0.33 → 2.03
+    best = min(_STANDARD_FRACTIONS, key=lambda f: abs(f[0] / f[1] - raw))
+    return f"{best[0]}-{best[1]}"
+
+
+def estimate_win_rates(horses: list, trials: int = 300) -> dict:
+    """Run the simulation `trials` times. Returns {horse_number: win_rate}.
+
+    Uses Laplace smoothing so no horse ever gets a 0% or 100% rate,
+    keeping displayed odds in a realistic range.
+    """
+    wins = {h["number"]: 0 for h in horses}
+    for _ in range(trials):
+        finish_order, _ = simulate_race(horses)
+        wins[finish_order[0]] += 1
+    n = len(horses)
+    return {
+        num: (wins[num] + 1) / (trials + n)
+        for num in wins
+    }
 
 
 def format_race_progress(horses: list, positions: dict, label: str) -> str:
@@ -69,7 +126,7 @@ class HorseRace(commands.Cog):
         self.bot = bot
         self.active_races: dict = {}  # guild_id -> race_state
 
-    @commands.command(name="race", help="Start a horse race with a 60-second betting window")
+    @commands.command(name="race", help="Start a horse race with a 10-second betting window")
     async def start_race(self, ctx):
         guild_id = ctx.guild.id
 
@@ -87,8 +144,10 @@ class HorseRace(commands.Cog):
             horses.append({
                 "number": i,
                 "name": name,
-                "weight": random.randint(1, 10),
-                "bets": {},  # user_id -> amount
+                "weight": random.randint(4, 9),
+                "stamina": random.randint(4, 9),
+                "consistency": random.randint(3, 9),
+                "bets": {},
             })
 
         self.active_races[guild_id] = {
@@ -97,25 +156,40 @@ class HorseRace(commands.Cog):
             "betting_open": True,
         }
 
-        total_weight = sum(h["weight"] for h in horses)
+        win_rates = estimate_win_rates(horses)
+        favourite_num = max(win_rates, key=win_rates.get)
         lines = []
         for h in horses:
-            odds = total_weight / h["weight"]
-            lines.append(f"**#{h['number']}** {h['name']} — Odds: **{odds:.2f}x**")
+            rate = win_rates[h["number"]]
+            frac = to_fractional_odds(rate)
+            raw = (1 - rate) / rate if rate > 0 else 999
+            if h["number"] == favourite_num:
+                label = "⭐ Favourite"
+            elif raw < 4.0:
+                label = "Contender"
+            elif raw < 10.0:
+                label = "Longshot"
+            else:
+                label = "Outsider"
+            lines.append(
+                f"**#{h['number']}** {h['name']} "
+                f"— 🔥{h['weight']} 🔋{h['stamina']} 🎯{h['consistency']} "
+                f"— Odds: **{frac}** ({label})"
+            )
 
         embed = discord.Embed(
             title="🏇 Horse Race Starting!",
             description=(
                 "Place your bets now! Use `!racebet <number> <amount>`.\n"
-                "**Betting closes in 60 seconds.**"
+                "**Betting closes in 10 seconds.**"
             ),
             color=discord.Color.gold(),
         )
-        embed.add_field(name="Horses", value="\n".join(lines), inline=False)
-        embed.set_footer(text="Parimutuel betting — payout depends on total bets on the winner.")
+        embed.add_field(name="Horses (🔥 Weight  🔋 Stamina  🎯 Consistency)", value="\n".join(lines), inline=False)
+        embed.set_footer(text="Odds are estimates only — actual payout is parimutuel.")
 
         await ctx.send(embed=embed)
-        await asyncio.sleep(60)
+        await asyncio.sleep(10)
         await self._run_race(ctx, guild_id)
 
     @commands.command(name="racebet", help="Bet on a horse: !racebet <horse_number> <amount>")
@@ -160,14 +234,14 @@ class HorseRace(commands.Cog):
         update_points(user_id, guild_id, user_points - amount)
         horse["bets"][user_id] = amount
 
-        total_weight = sum(h["weight"] for h in horses)
-        odds = total_weight / horse["weight"]
+        win_rates = estimate_win_rates(horses)
+        frac = to_fractional_odds(win_rates[horse_number])
 
         embed = info_embed(
             "✅ Bet Placed",
             f"{ctx.author.mention} bet **{amount}** points on "
             f"**#{horse_number} {horse['name']}**!\n"
-            f"Current odds: **{odds:.2f}x**",
+            f"Morning line odds: **{frac}**",
             discord.Color.green(),
         )
         await ctx.send(embed=embed)
@@ -186,27 +260,23 @@ class HorseRace(commands.Cog):
 
         finish_order, snapshots = simulate_race(horses)
 
-        # Send initial message at the gates
         initial_positions = {h["number"]: 0.0 for h in horses}
         race_msg = await channel.send(
             format_race_progress(horses, initial_positions, "And they're off!")
         )
 
-        # Three checkpoint edits
-        checkpoints = [(10, "25% Complete"), (20, "50% Complete"), (30, "75% Complete")]
-        for tick, label in checkpoints:
-            await asyncio.sleep(4)
-            positions = snapshots.get(tick, initial_positions)
+        checkpoints = [(round(x * 0.1, 1), f"{x * 10}% Complete") for x in range(1, 10)]
+        for milestone, label in checkpoints:
+            await asyncio.sleep(1)
+            positions = snapshots.get(milestone, initial_positions)
             await race_msg.edit(content=format_race_progress(horses, positions, label))
 
-        await asyncio.sleep(4)
+        await asyncio.sleep(1)
 
-        # Build final results
         winner_num = finish_order[0]
         winner = next(h for h in horses if h["number"] == winner_num)
 
-        # Collect all bets
-        all_bets = {}  # user_id -> (horse_num, amount)
+        all_bets = {}
         for h in horses:
             for uid, amt in h["bets"].items():
                 all_bets[uid] = (h["number"], amt)
@@ -215,7 +285,6 @@ class HorseRace(commands.Cog):
         winning_bets = {uid: amt for uid, (num, amt) in all_bets.items() if num == winner_num}
         winning_total = sum(winning_bets.values())
 
-        # Podium
         medals = ["🥇", "🥈", "🥉"]
         podium_lines = []
         for i, num in enumerate(finish_order[:3]):
@@ -223,7 +292,6 @@ class HorseRace(commands.Cog):
             medal = medals[i] if i < 3 else f"#{i + 1}"
             podium_lines.append(f"{medal} **#{num} {h['name']}**")
 
-        # Payouts
         payout_lines = []
         if total_pool == 0:
             payout_lines.append("No bets were placed — just a fun race!")
