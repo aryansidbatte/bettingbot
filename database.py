@@ -16,6 +16,7 @@ def setup_db():
         guild_id   TEXT NOT NULL,
         monies     INTEGER NOT NULL DEFAULT 1000,
         carats     INTEGER NOT NULL DEFAULT 0,
+        vc_minutes INTEGER NOT NULL DEFAULT 0,
         last_daily TEXT,
         PRIMARY KEY (user_id, guild_id)
     )
@@ -59,6 +60,11 @@ def setup_db():
         PRIMARY KEY (user_id, guild_id)
     )
     """)
+    # Migrate existing DBs: add vc_minutes column if it doesn't exist yet
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN vc_minutes INTEGER NOT NULL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass  # column already exists
     conn.commit()
 
 
@@ -70,8 +76,8 @@ def get_user_monies(user_id, guild_id):
     result = c.fetchone()
     if result is None:
         c.execute(
-            "INSERT INTO users (user_id, guild_id, monies, carats, last_daily) VALUES (?,?,?,?,?)",
-            (str(user_id), str(guild_id), 1000, 0, None),
+            "INSERT INTO users (user_id, guild_id, monies, carats, vc_minutes, last_daily) VALUES (?,?,?,?,?,?)",
+            (str(user_id), str(guild_id), 1000, 0, 0, None),
         )
         conn.commit()
         return 1000
@@ -103,6 +109,39 @@ def update_carats(user_id, guild_id, carats):
     conn.commit()
 
 
+def get_vc_minutes(user_id, guild_id):
+    c.execute(
+        "SELECT vc_minutes FROM users WHERE user_id=? AND guild_id=?",
+        (str(user_id), str(guild_id)),
+    )
+    result = c.fetchone()
+    return result[0] if result else 0
+
+
+def add_vc_minutes(user_id, guild_id, delta=1):
+    """Increment VC minutes by delta. Awards carats when accumulated >= 60.
+    Returns number of carats awarded (0 or 1 in normal operation).
+    Row must exist (call get_user_monies first to auto-create).
+    """
+    c.execute(
+        "SELECT vc_minutes, carats FROM users WHERE user_id=? AND guild_id=?",
+        (str(user_id), str(guild_id)),
+    )
+    row = c.fetchone()
+    if row is None:
+        return 0
+    new_minutes = row[0] + delta
+    carats_awarded = new_minutes // 60
+    new_minutes = new_minutes % 60
+    new_carats = row[1] + carats_awarded
+    c.execute(
+        "UPDATE users SET vc_minutes=?, carats=? WHERE user_id=? AND guild_id=?",
+        (new_minutes, new_carats, str(user_id), str(guild_id)),
+    )
+    conn.commit()
+    return carats_awarded
+
+
 def add_daily_reward(user_id, guild_id, monies=100, carats=10):
     """Write the daily reward. Returns (new_monies, new_carats).
     Cooldown checking is the caller's responsibility.
@@ -117,8 +156,8 @@ def add_daily_reward(user_id, guild_id, monies=100, carats=10):
         new_monies = 1000 + monies
         new_carats = carats
         c.execute(
-            "INSERT INTO users (user_id, guild_id, monies, carats, last_daily) VALUES (?,?,?,?,?)",
-            (str(user_id), str(guild_id), new_monies, new_carats, now),
+            "INSERT INTO users (user_id, guild_id, monies, carats, vc_minutes, last_daily) VALUES (?,?,?,?,?,?)",
+            (str(user_id), str(guild_id), new_monies, new_carats, 0, now),
         )
     else:
         new_monies = row[0] + monies

@@ -49,6 +49,17 @@ class TestSetupDbNewSchema:
     def test_creates_race_notifications_table(self, in_memory_db):
         assert table_exists(in_memory_db, "race_notifications")
 
+    def test_users_table_has_vc_minutes_column(self, in_memory_db):
+        cols = [row[1] for row in in_memory_db.execute("PRAGMA table_info(users)").fetchall()]
+        assert "vc_minutes" in cols
+
+    def test_vc_minutes_defaults_to_zero(self, in_memory_db):
+        database.get_user_monies("user1", "guild1")
+        row = in_memory_db.execute(
+            "SELECT vc_minutes FROM users WHERE user_id='user1' AND guild_id='guild1'"
+        ).fetchone()
+        assert row[0] == 0
+
 
 class TestGetUserMonies:
     def test_new_user_gets_1000_monies(self, in_memory_db):
@@ -110,6 +121,68 @@ class TestUpdateCarats:
         in_memory_db.commit()
         database.update_carats("user1", "guild1", 25)
         assert database.get_user_carats("user1", "guild1") == 25
+
+
+class TestGetVcMinutes:
+    def test_returns_zero_for_existing_user_with_no_minutes(self, in_memory_db):
+        database.get_user_monies("user1", "guild1")
+        assert database.get_vc_minutes("user1", "guild1") == 0
+
+    def test_returns_zero_for_missing_user(self, in_memory_db):
+        assert database.get_vc_minutes("nobody", "guild1") == 0
+
+    def test_returns_stored_minutes(self, in_memory_db):
+        in_memory_db.execute(
+            "INSERT INTO users (user_id, guild_id, monies, carats, vc_minutes, last_daily)"
+            " VALUES (?,?,?,?,?,?)",
+            ("user1", "guild1", 1000, 0, 45, None),
+        )
+        in_memory_db.commit()
+        assert database.get_vc_minutes("user1", "guild1") == 45
+
+
+class TestAddVcMinutes:
+    def test_increments_minutes(self, in_memory_db):
+        database.get_user_monies("user1", "guild1")
+        database.add_vc_minutes("user1", "guild1", delta=1)
+        assert database.get_vc_minutes("user1", "guild1") == 1
+
+    def test_no_carat_before_60(self, in_memory_db):
+        database.get_user_monies("user1", "guild1")
+        awarded = database.add_vc_minutes("user1", "guild1", delta=59)
+        assert awarded == 0
+        assert database.get_user_carats("user1", "guild1") == 0
+
+    def test_awards_carat_at_60(self, in_memory_db):
+        in_memory_db.execute(
+            "INSERT INTO users (user_id, guild_id, monies, carats, vc_minutes, last_daily)"
+            " VALUES (?,?,?,?,?,?)",
+            ("user1", "guild1", 1000, 0, 59, None),
+        )
+        in_memory_db.commit()
+        awarded = database.add_vc_minutes("user1", "guild1", delta=1)
+        assert awarded == 1
+        assert database.get_user_carats("user1", "guild1") == 1
+
+    def test_resets_minutes_after_award(self, in_memory_db):
+        in_memory_db.execute(
+            "INSERT INTO users (user_id, guild_id, monies, carats, vc_minutes, last_daily)"
+            " VALUES (?,?,?,?,?,?)",
+            ("user1", "guild1", 1000, 0, 59, None),
+        )
+        in_memory_db.commit()
+        database.add_vc_minutes("user1", "guild1", delta=1)
+        assert database.get_vc_minutes("user1", "guild1") == 0
+
+    def test_no_row_returns_zero_does_not_crash(self, in_memory_db):
+        awarded = database.add_vc_minutes("nobody", "guild1", delta=1)
+        assert awarded == 0
+
+    def test_isolated_by_guild(self, in_memory_db):
+        database.get_user_monies("user1", "guild1")
+        database.get_user_monies("user1", "guild2")
+        database.add_vc_minutes("user1", "guild1", delta=30)
+        assert database.get_vc_minutes("user1", "guild2") == 0
 
 
 class TestAddDailyReward:
