@@ -10,6 +10,8 @@
 
 ## Behavioral Rules (Always Enforced)
 
+- NEVER add Co-Authored-By lines to commit messages
+
 - Do what has been asked; nothing more, nothing less
 - NEVER create files unless they're absolutely necessary for achieving your goal
 - ALWAYS prefer editing an existing file to creating a new one
