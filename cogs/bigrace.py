@@ -203,125 +203,126 @@ class BigRace(commands.Cog):
             "betting_open": True,
         }
 
-        # Build and send betting embed
-        win_rates = estimate_win_rates(horses)
-        favourite_num = max(win_rates, key=win_rates.get)
-        lines = []
-        for h in horses:
-            rate = win_rates[h["number"]]
-            frac = to_fractional_odds(rate)
-            raw = (1 - rate) / rate if rate > 0 else 999
-            if h["number"] == favourite_num:
-                label = "⭐ Favourite"
-            elif raw < 4.0:
-                label = "Contender"
-            elif raw < 10.0:
-                label = "Longshot"
-            else:
-                label = "Outsider"
-            lines.append(
-                f"**#{h['number']} {h['name']}** — {label}\n"
-                f"> 🔥\u2003{h['weight']}\u2003\u2003🔋\u2003{h['stamina']}\u2003\u2003🎯\u2003{h['consistency']}\u2003\u2003Odds: **{frac}**"
-            )
-
-        embed = discord.Embed(
-            title="Daily Big Race!",
-            description="Place your bets now! Use `!racebetbig <number> <amount>`.\n**Betting closes in 60 seconds.**",
-            color=discord.Color.purple(),
-        )
-        embed.add_field(
-            name="🔥 Weight  🔋 Stamina  🎯 Consistency",
-            value="\n".join(lines),
-            inline=False,
-        )
-        embed.set_footer(text="Odds are estimates only — actual payout is parimutuel. Bets use carats.")
-
-        carat_file = discord.File(_CARAT_IMAGE, filename="carat.png")
-        embed.set_thumbnail(url="attachment://carat.png")
-        await channel.send(file=carat_file, embed=embed)
-
-        await asyncio.sleep(60)
-
-        race = self.active_big_races.get(guild_id)
-        if race is None:
-            return
-        race["betting_open"] = False
-        horses = race["horses"]
-
-        # Simulate and animate
-        finish_order, snapshots = simulate_race(horses)
-        initial_positions = {h["number"]: 0.0 for h in horses}
-        race_msg = await channel.send(
-            format_race_progress(horses, initial_positions, "And they're off!")
-        )
-        checkpoints = [(round(x * 0.1, 1), f"{x * 10}% Complete") for x in range(1, 10)]
-        for milestone, label in checkpoints:
-            await asyncio.sleep(1)
-            positions = snapshots.get(milestone, initial_positions)
-            await race_msg.edit(content=format_race_progress(horses, positions, label))
-        await asyncio.sleep(1)
-
-        # Payouts
-        winner_num = finish_order[0]
-        winner = next(h for h in horses if h["number"] == winner_num)
-
-        all_bets = {}
-        for h in horses:
-            for uid, amt in h["bets"].items():
-                all_bets[uid] = (h["number"], amt)
-
-        total_pool = sum(amt for _, amt in all_bets.values())
-        winning_bets = {uid: amt for uid, (num, amt) in all_bets.items() if num == winner_num}
-        winning_total = sum(winning_bets.values())
-
-        medals = ["🥇", "🥈", "🥉"]
-        podium_lines = []
-        for i, num in enumerate(finish_order[:3]):
-            h = next(x for x in horses if x["number"] == num)
-            medal = medals[i] if i < len(medals) else f"#{i + 1}"
-            podium_lines.append(f"{medal} **#{num} {h['name']}**")
-
-        payout_lines = []
-        if total_pool == 0:
-            payout_lines.append("No bets were placed — just a fun race!")
-        elif winning_total == 0:
-            for uid, (_, amt) in all_bets.items():
-                carats = get_user_carats(uid, guild_id)
-                update_carats(uid, guild_id, carats + amt)
-            payout_lines.append(
-                f"No one bet on **#{winner_num} {winner['name']}** — all carats refunded!"
-            )
-        else:
-            guild_obj = self.bot.get_guild(guild_id)
-            for uid, amt in winning_bets.items():
-                payout = int((amt / winning_total) * total_pool)
-                carats = get_user_carats(uid, guild_id)
-                update_carats(uid, guild_id, carats + payout)
-                if guild_obj:
-                    member = guild_obj.get_member(int(uid))
-                    display = member.display_name if member else f"<@{uid}>"
+        try:
+            # Build and send betting embed
+            win_rates = estimate_win_rates(horses)
+            favourite_num = max(win_rates, key=win_rates.get)
+            lines = []
+            for h in horses:
+                rate = win_rates[h["number"]]
+                frac = to_fractional_odds(rate)
+                raw = (1 - rate) / rate if rate > 0 else 999
+                if h["number"] == favourite_num:
+                    label = "⭐ Favourite"
+                elif raw < 4.0:
+                    label = "Contender"
+                elif raw < 10.0:
+                    label = "Longshot"
                 else:
-                    display = f"<@{uid}>"
-                payout_lines.append(f"💰 {display}: **+{payout}** carats (bet {amt})")
+                    label = "Outsider"
+                lines.append(
+                    f"**#{h['number']} {h['name']}** — {label}\n"
+                    f"> 🔥\u2003{h['weight']}\u2003\u2003🔋\u2003{h['stamina']}\u2003\u2003🎯\u2003{h['consistency']}\u2003\u2003Odds: **{frac}**"
+                )
 
-        result_embed = discord.Embed(
-            title=f"🏁 {winner['name']} wins the Daily Big Race!",
-            color=discord.Color.purple(),
-        )
-        result_embed.add_field(name="Podium", value="\n".join(podium_lines), inline=False)
-        result_embed.add_field(name="Payouts", value="\n".join(payout_lines), inline=False)
-        winner_image = HORSE_IMAGES.get(winner["name"])
-        if winner_image:
-            result_embed.set_image(url=winner_image)
+            embed = discord.Embed(
+                title="Daily Big Race!",
+                description="Place your bets now! Use `!racebetbig <number> <amount>`.\n**Betting closes in 60 seconds.**",
+                color=discord.Color.purple(),
+            )
+            embed.add_field(
+                name="🔥 Weight  🔋 Stamina  🎯 Consistency",
+                value="\n".join(lines),
+                inline=False,
+            )
+            embed.set_footer(text="Odds are estimates only — actual payout is parimutuel. Bets use carats.")
 
-        # Clear the progress bar message, then send result as a fresh message
-        # (discord.File must be a new instance — cannot reuse the one from the betting embed)
-        await race_msg.edit(content="✅ Race complete! Results below.")
-        carat_file2 = discord.File(_CARAT_IMAGE, filename="carat.png")
-        result_embed.set_thumbnail(url="attachment://carat.png")
-        await channel.send(file=carat_file2, embed=result_embed)
+            carat_file = discord.File(_CARAT_IMAGE, filename="carat.png")
+            embed.set_thumbnail(url="attachment://carat.png")
+            await channel.send(file=carat_file, embed=embed)
 
-        del self.active_big_races[guild_id]
+            await asyncio.sleep(60)
+
+            race = self.active_big_races.get(guild_id)
+            if race is None:
+                return
+            race["betting_open"] = False
+            horses = race["horses"]
+
+            # Simulate and animate
+            finish_order, snapshots = simulate_race(horses)
+            initial_positions = {h["number"]: 0.0 for h in horses}
+            race_msg = await channel.send(
+                format_race_progress(horses, initial_positions, "And they're off!")
+            )
+            checkpoints = [(round(x * 0.1, 1), f"{x * 10}% Complete") for x in range(1, 10)]
+            for milestone, label in checkpoints:
+                await asyncio.sleep(1)
+                positions = snapshots.get(milestone, initial_positions)
+                await race_msg.edit(content=format_race_progress(horses, positions, label))
+            await asyncio.sleep(1)
+
+            # Payouts
+            winner_num = finish_order[0]
+            winner = next(h for h in horses if h["number"] == winner_num)
+
+            all_bets = {}
+            for h in horses:
+                for uid, amt in h["bets"].items():
+                    all_bets[uid] = (h["number"], amt)
+
+            total_pool = sum(amt for _, amt in all_bets.values())
+            winning_bets = {uid: amt for uid, (num, amt) in all_bets.items() if num == winner_num}
+            winning_total = sum(winning_bets.values())
+
+            medals = ["🥇", "🥈", "🥉"]
+            podium_lines = []
+            for i, num in enumerate(finish_order[:3]):
+                h = next(x for x in horses if x["number"] == num)
+                medal = medals[i] if i < len(medals) else f"#{i + 1}"
+                podium_lines.append(f"{medal} **#{num} {h['name']}**")
+
+            payout_lines = []
+            if total_pool == 0:
+                payout_lines.append("No bets were placed — just a fun race!")
+            elif winning_total == 0:
+                for uid, (_, amt) in all_bets.items():
+                    carats = get_user_carats(uid, guild_id)
+                    update_carats(uid, guild_id, carats + amt)
+                payout_lines.append(
+                    f"No one bet on **#{winner_num} {winner['name']}** — all carats refunded!"
+                )
+            else:
+                guild_obj = self.bot.get_guild(guild_id)
+                for uid, amt in winning_bets.items():
+                    payout = int((amt / winning_total) * total_pool)
+                    carats = get_user_carats(uid, guild_id)
+                    update_carats(uid, guild_id, carats + payout)
+                    if guild_obj:
+                        member = guild_obj.get_member(int(uid))
+                        display = member.display_name if member else f"<@{uid}>"
+                    else:
+                        display = f"<@{uid}>"
+                    payout_lines.append(f"💰 {display}: **+{payout}** carats (bet {amt})")
+
+            result_embed = discord.Embed(
+                title=f"🏁 {winner['name']} wins the Daily Big Race!",
+                color=discord.Color.purple(),
+            )
+            result_embed.add_field(name="Podium", value="\n".join(podium_lines), inline=False)
+            result_embed.add_field(name="Payouts", value="\n".join(payout_lines), inline=False)
+            winner_image = HORSE_IMAGES.get(winner["name"])
+            if winner_image:
+                result_embed.set_image(url=winner_image)
+
+            # Clear the progress bar message, then send result as a fresh message
+            # (discord.File must be a new instance — cannot reuse the one from the betting embed)
+            await race_msg.edit(content="✅ Race complete! Results below.")
+            carat_file2 = discord.File(_CARAT_IMAGE, filename="carat.png")
+            result_embed.set_thumbnail(url="attachment://carat.png")
+            await channel.send(file=carat_file2, embed=result_embed)
+        finally:
+            self.active_big_races.pop(guild_id, None)
 
 
 async def setup(bot):
