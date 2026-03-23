@@ -185,7 +185,7 @@ class BigRace(commands.Cog):
                     mentions.append(member.mention)
         if mentions:
             await channel.send(
-                " ".join(mentions) + " **The Daily Big Race is starting in 60 seconds — place your bets!**"
+                " ".join(mentions) + " **The Daily Big Race is starting in 5 minutes — place your bets!**"
             )
 
         # Build horses
@@ -231,23 +231,35 @@ class BigRace(commands.Cog):
                     f"> 🔥\u2003{h['weight']}\u2003\u2003🔋\u2003{h['stamina']}\u2003\u2003🎯\u2003{h['consistency']}\u2003\u2003Odds: **{frac}**"
                 )
 
-            embed = discord.Embed(
-                title="Daily Big Race!",
-                description="Place your bets now! Use `!racebetbig <number> <amount>`.\n**Betting closes in 60 seconds.**",
-                color=discord.Color.purple(),
-            )
-            embed.add_field(
-                name="🔥 Weight  🔋 Stamina  🎯 Consistency",
-                value="\n".join(lines),
-                inline=False,
-            )
-            embed.set_footer(text="Odds are estimates only — actual payout is parimutuel. Bets use carats.")
+            horse_field_value = "\n".join(lines)
+
+            def _build_betting_embed(countdown: str) -> discord.Embed:
+                e = discord.Embed(
+                    title="🏇 Daily Big Race!",
+                    description=f"Place your bets now! Use `!racebetbig <number> <amount>`.\n**Betting closes in {countdown}.**",
+                    color=discord.Color.purple(),
+                )
+                e.add_field(
+                    name="🔥 Weight  🔋 Stamina  🎯 Consistency",
+                    value=horse_field_value,
+                    inline=False,
+                )
+                e.set_footer(text="Odds are estimates only — actual payout is parimutuel. Bets use carats.")
+                e.set_thumbnail(url="attachment://carat.png")
+                return e
 
             carat_file = discord.File(_CARAT_IMAGE, filename="carat.png")
-            embed.set_thumbnail(url="attachment://carat.png")
-            await channel.send(file=carat_file, embed=embed)
+            betting_msg = await channel.send(file=carat_file, embed=_build_betting_embed("5:00"))
 
-            await asyncio.sleep(60)
+            # Live countdown — edit every 30 seconds
+            betting_window = 300  # 5 minutes
+            interval = 30
+            for elapsed in range(interval, betting_window, interval):
+                await asyncio.sleep(interval)
+                remaining = betting_window - elapsed
+                mins, secs = divmod(remaining, 60)
+                await betting_msg.edit(embed=_build_betting_embed(f"{mins}:{secs:02d}"))
+            await asyncio.sleep(interval)  # final interval to reach 5:00
 
             race = self.active_big_races.get(guild_id)
             if race is None:
