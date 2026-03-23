@@ -174,9 +174,8 @@ class HorseRace(commands.Cog):
             else:
                 label = "Outsider"
             lines.append(
-                f"**#{h['number']}** {h['name']} "
-                f"— 🔥{h['weight']} 🔋{h['stamina']} 🎯{h['consistency']} "
-                f"— Odds: **{frac}** ({label})"
+                f"**#{h['number']} {h['name']}** — {label}\n"
+                f"> 🔥\u2003{h['weight']}\u2003\u2003🔋\u2003{h['stamina']}\u2003\u2003🎯\u2003{h['consistency']}\u2003\u2003Odds: **{frac}**"
             )
 
         embed = discord.Embed(
@@ -187,7 +186,7 @@ class HorseRace(commands.Cog):
             ),
             color=discord.Color.gold(),
         )
-        embed.add_field(name="Horses (🔥 Weight  🔋 Stamina  🎯 Consistency)", value="\n".join(lines), inline=False)
+        embed.add_field(name="🔥 Weight  🔋 Stamina  🎯 Consistency", value="\n".join(lines), inline=False)
         embed.set_footer(text="Odds are estimates only — actual payout is parimutuel.")
 
         await ctx.send(embed=embed)

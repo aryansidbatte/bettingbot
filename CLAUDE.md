@@ -1,5 +1,13 @@
 # Claude Code Configuration - RuFlo V3
 
+## Workflow Rules
+
+1. Never jump straight to code — brainstorm and plan first
+2. Show plans in chunks for approval before executing
+3. Write failing tests before writing implementation code
+4. Verify work before declaring any task complete
+5. One feature per branch, PR before merge
+
 ## Behavioral Rules (Always Enforced)
 
 - Do what has been asked; nothing more, nothing less
