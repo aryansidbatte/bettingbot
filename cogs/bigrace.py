@@ -185,7 +185,7 @@ class BigRace(commands.Cog):
                     mentions.append(member.mention)
         if mentions:
             await channel.send(
-                " ".join(mentions) + " **The Daily Big Race is starting in 5 minutes — place your bets!**"
+                " ".join(mentions) + "\n**The Daily Big Race is starting in 5 minutes — place your bets!**"
             )
 
         # Build horses
@@ -249,17 +249,16 @@ class BigRace(commands.Cog):
                 return e
 
             carat_file = discord.File(_CARAT_IMAGE, filename="carat.png")
-            betting_msg = await channel.send(file=carat_file, embed=_build_betting_embed("5:00"))
+            betting_msg = await channel.send(file=carat_file, embed=_build_betting_embed("300 seconds"))
 
-            # Live countdown — edit every 30 seconds
+            # Live countdown — edit every 10 seconds
             betting_window = 300  # 5 minutes
-            interval = 30
+            interval = 10
             for elapsed in range(interval, betting_window, interval):
                 await asyncio.sleep(interval)
                 remaining = betting_window - elapsed
-                mins, secs = divmod(remaining, 60)
-                await betting_msg.edit(embed=_build_betting_embed(f"{mins}:{secs:02d}"))
-            await asyncio.sleep(interval)  # final interval to reach 5:00
+                await betting_msg.edit(embed=_build_betting_embed(f"{remaining} seconds"))
+            await asyncio.sleep(interval)  # final interval to reach 0
 
             race = self.active_big_races.get(guild_id)
             if race is None:
