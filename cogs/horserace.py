@@ -6,7 +6,7 @@ import random
 import discord
 from discord.ext import commands
 
-from database import get_user_points, update_points
+from database import get_user_monies, update_monies
 from helpers import info_embed, error_embed
 
 _data_path = os.path.join(os.path.dirname(__file__), "..", "data", "horses.json")
@@ -225,14 +225,14 @@ class HorseRace(commands.Cog):
                 await ctx.send(embed=error_embed("You already placed a bet in this race!"))
                 return
 
-        user_points = get_user_points(user_id, guild_id)
-        if user_points < amount:
+        user_monies = get_user_monies(user_id, guild_id)
+        if user_monies < amount:
             await ctx.send(embed=error_embed(
-                f"Insufficient points! You have **{user_points}** points."
+                f"Insufficient monies! You have **{user_monies}** monies."
             ))
             return
 
-        update_points(user_id, guild_id, user_points - amount)
+        update_monies(user_id, guild_id, user_monies - amount)
         horse["bets"][user_id] = amount
 
         win_rates = estimate_win_rates(horses)
@@ -240,7 +240,7 @@ class HorseRace(commands.Cog):
 
         embed = info_embed(
             "✅ Bet Placed",
-            f"{ctx.author.mention} bet **{amount}** points on "
+            f"{ctx.author.mention} bet **{amount}** monies on "
             f"**#{horse_number} {horse['name']}**!\n"
             f"Morning line odds: **{frac}**",
             discord.Color.green(),
@@ -298,22 +298,22 @@ class HorseRace(commands.Cog):
             payout_lines.append("No bets were placed — just a fun race!")
         elif winning_total == 0:
             for uid, (_, amt) in all_bets.items():
-                pts = get_user_points(uid, guild_id)
-                update_points(uid, guild_id, pts + amt)
+                pts = get_user_monies(uid, guild_id)
+                update_monies(uid, guild_id, pts + amt)
             payout_lines.append(
                 f"No one bet on **#{winner_num} {winner['name']}** — all bets refunded!"
             )
         else:
             for uid, amt in winning_bets.items():
                 payout = int((amt / winning_total) * total_pool)
-                pts = get_user_points(uid, guild_id)
-                update_points(uid, guild_id, pts + payout)
+                pts = get_user_monies(uid, guild_id)
+                update_monies(uid, guild_id, pts + payout)
                 try:
                     member = await ctx.guild.fetch_member(uid)
                     display = member.display_name
                 except Exception:
                     display = f"<@{uid}>"
-                payout_lines.append(f"💰 {display}: **+{payout}** points (bet {amt})")
+                payout_lines.append(f"💰 {display}: **+{payout}** monies (bet {amt})")
 
         embed = discord.Embed(
             title=f"🏁 {winner['name']} wins the race!",

@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from database import c, conn, get_user_points, update_points
+from database import c, conn, get_user_monies, update_monies
 from helpers import info_embed, error_embed, get_reply_or_cancel
 
 class Betting(commands.Cog):
@@ -122,7 +122,7 @@ class Betting(commands.Cog):
                     odds_str = "1.00x"
                 lines.append(
                     f"{idx}. {name} "
-                    f"({total_amount} points, Payout: {odds_str})"
+                    f"({total_amount} monies, Payout: {odds_str})"
                 )
 
             embed.add_field(
@@ -223,7 +223,7 @@ class Betting(commands.Cog):
         msg_amt = await get_reply_or_cancel(
             self.bot,
             ctx,
-            f"💰 How many points do you want to bet on **{option_name}**?"
+            f"💰 How many monies do you want to bet on **{option_name}**?"
         )
         if msg_amt is None:
             return
@@ -238,9 +238,9 @@ class Betting(commands.Cog):
             await ctx.send(embed=error_embed("Bet amount must be positive."))
             return
 
-        user_points = get_user_points(ctx.author.id, ctx.guild.id)
-        if user_points < amount:
-            await ctx.send(embed=error_embed(f"Insufficient points! You have {user_points} points."))
+        user_monies = get_user_monies(ctx.author.id, ctx.guild.id)
+        if user_monies < amount:
+            await ctx.send(embed=error_embed(f"Insufficient monies! You have {user_monies} monies."))
             return
 
         c.execute(
@@ -253,7 +253,7 @@ class Betting(commands.Cog):
             (amount, option_id),
         )
 
-        update_points(ctx.author.id, ctx.guild.id, user_points - amount)
+        update_monies(ctx.author.id, ctx.guild.id, user_monies - amount)
         conn.commit()
 
         c.execute("SELECT total_amount FROM bet_options WHERE bet_id=?", (bet_id_db,))
@@ -270,7 +270,7 @@ class Betting(commands.Cog):
             "✅ Bet Placed",
             f"{ctx.author.mention} bet **{amount}** on **{option_name}** "
             f"for Bet #{bet_id_db}.\n"
-            f"Potential payout: **{est_payout}** points ({odds:.2f}x).",
+            f"Potential payout: **{est_payout}** monies ({odds:.2f}x).",
             discord.Color.green()
         )
         await ctx.send(embed=embed)
@@ -363,13 +363,13 @@ class Betting(commands.Cog):
             )
             await ctx.send(embed=embed)
             for user_id, _, amount in wagers:
-                points = get_user_points(user_id, ctx.guild.id)
-                update_points(user_id, ctx.guild.id, points + amount)
+                monies = get_user_monies(user_id, ctx.guild.id)
+                update_monies(user_id, ctx.guild.id, monies + amount)
         else:
             for user_id, amount in winners:
                 payout = int((amount / winning_total_sum) * total_pool)
-                points = get_user_points(user_id, ctx.guild.id)
-                update_points(user_id, ctx.guild.id, points + payout)
+                monies = get_user_monies(user_id, ctx.guild.id)
+                update_monies(user_id, ctx.guild.id, monies + payout)
 
             embed = info_embed(
                 "✅ Bet Resolved",
