@@ -128,7 +128,7 @@ class HorseRace(commands.Cog):
         self.bot = bot
         self.active_races: dict = {}  # guild_id -> race_state
 
-    @commands.command(name="race", help="Start a horse race with a 10-second betting window")
+    @commands.command(name="race", help="Start a horse race with a 60-second betting window")
     async def start_race(self, ctx):
         guild_id = ctx.guild.id
 
@@ -182,15 +182,25 @@ class HorseRace(commands.Cog):
             title="🏇 Horse Race Starting!",
             description=(
                 "Place your bets now! Use `!racebet <number> <amount>`.\n"
-                "**Betting closes in 10 seconds.**"
+                "**Betting closes in 60 seconds.**"
             ),
             color=discord.Color.gold(),
         )
         embed.add_field(name="🔥 Weight  🔋 Stamina  🎯 Consistency", value="\n".join(lines), inline=False)
         embed.set_footer(text="Odds are estimates only — actual payout is parimutuel.")
 
-        await ctx.send(embed=embed)
+        announce_msg = await ctx.send(embed=embed)
         await asyncio.sleep(60)
+
+        closed_embed = discord.Embed(
+            title="🏇 Horse Race Starting!",
+            description="🚫 **Betting is closed — race underway!**",
+            color=discord.Color.dark_gold(),
+        )
+        closed_embed.add_field(name="🔥 Weight  🔋 Stamina  🎯 Consistency", value="\n".join(lines), inline=False)
+        closed_embed.set_footer(text="Odds are estimates only — actual payout is parimutuel.")
+        await announce_msg.edit(embed=closed_embed)
+
         await self._run_race(ctx, guild_id)
 
     @commands.command(name="racebet", help="Bet on a horse: !racebet <horse_number> <amount>")
