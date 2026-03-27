@@ -118,5 +118,20 @@ class Economy(commands.Cog):
         )
         await ctx.send(embed=embed)
 
+    @commands.command(name="forcedaily", help="(Admin) Give all server members their daily reward without resetting timers")
+    @commands.has_permissions(manage_guild=True)
+    async def force_daily(self, ctx):
+        c.execute(
+            "UPDATE users SET monies=monies+100, carats=carats+10 WHERE guild_id=?",
+            (str(ctx.guild.id),),
+        )
+        conn.commit()
+        count = c.rowcount
+        await ctx.send(embed=info_embed(
+            "🎁 Force Daily",
+            f"Gave **+100 monies** and **+10 carats** to **{count}** user(s).\nCooldown timers were not affected.",
+            discord.Color.green()
+        ))
+
 async def setup(bot):
     await bot.add_cog(Economy(bot))
