@@ -429,7 +429,7 @@ class Betting(commands.Cog):
         wagers = c.fetchall()
 
         if not wagers:
-            await send_result(info_embed(
+            await send_result(embed=info_embed(
                 "⚠️ Bet Closed",
                 "No wagers were placed on this bet. Closing it with no payouts.",
                 discord.Color.orange()
@@ -443,7 +443,7 @@ class Betting(commands.Cog):
         winning_total_sum = sum(amt for _, amt in winners)
 
         if winning_total_sum == 0:
-            await send_result(info_embed(
+            await send_result(embed=info_embed(
                 "↩️ Bets Refunded",
                 f"No one bet on the winning outcome (**{winning_name}**).\nAll bets have been refunded.",
                 discord.Color.orange()
@@ -456,7 +456,7 @@ class Betting(commands.Cog):
                 payout = int((amt / winning_total_sum) * total_pool)
                 monies = get_user_monies(user_id, ctx.guild.id)
                 update_monies(user_id, ctx.guild.id, monies + payout)
-            await send_result(info_embed(
+            await send_result(embed=info_embed(
                 "✅ Bet Resolved",
                 f"Bet #{bet_id_db} resolved! Winning outcome: **{winning_name}**\n"
                 f"Winnings distributed to **{len(winners)}** winner(s).",
