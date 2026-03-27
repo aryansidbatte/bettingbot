@@ -284,54 +284,65 @@ class Betting(commands.Cog):
             ))
             return
 
+        wizard_msg = await ctx.send(embed=info_embed("🎲 Place a Bet", "Starting…", discord.Color.blue()))
+
+        def check(m):
+            return m.author == ctx.author and m.channel == ctx.channel
+
+        async def ask(prompt_embed):
+            await wizard_msg.edit(content=None, embed=prompt_embed)
+            try:
+                msg = await self.bot.wait_for("message", timeout=60.0, check=check)
+            except asyncio.TimeoutError:
+                await wizard_msg.edit(embed=error_embed("Timed out. Please run the command again."))
+                return None
+            if msg.content.strip().lower() == "cancel":
+                await wizard_msg.edit(embed=info_embed("❌ Cancelled", "Bet cancelled.", discord.Color.orange()))
+                return None
+            return msg.content.strip()
+
         c.execute(
             "SELECT bet_id, description FROM bets WHERE guild_id=? AND status='open'",
             (str(ctx.guild.id),),
         )
         bets = c.fetchall()
-
         if not bets:
-            await ctx.send(embed=error_embed("No active bets! Use `!createbet` to make one."))
+            await wizard_msg.edit(embed=error_embed("No active bets! Use `!createbet` to make one."))
             return
 
-        lines = [f"Bet #{bet_id}: {desc}" for bet_id, desc in bets]
-        msg_id = await get_reply_or_cancel(
-            self.bot,
-            ctx,
-            "📋 **Active Bets:**\n"
-            + "\n".join(lines)
-            + "\n\n📌 Reply with the **Bet ID** (number) you want to bet on."
-        )
-        if msg_id is None:
+        lines = [f"Bet #{bid}: {desc}" for bid, desc in bets]
+        bet_id_str = await ask(info_embed(
+            "🎲 Place a Bet",
+            "📋 **Active Bets:**\n" + "\n".join(lines) + "\n\nReply with the **Bet ID** you want to bet on.",
+            discord.Color.blue(),
+        ))
+        if bet_id_str is None:
             return
 
         try:
-            bet_id = int(msg_id.content.strip())
+            bet_id = int(bet_id_str)
         except ValueError:
-            await ctx.send(embed=error_embed("Bet ID must be a number. Run `!bet` again."))
+            await wizard_msg.edit(embed=error_embed("Bet ID must be a number."))
             return
 
         c.execute(
-            "SELECT bet_id, description, status FROM bets "
-            "WHERE bet_id=? AND guild_id=?",
+            "SELECT bet_id, description, status FROM bets WHERE bet_id=? AND guild_id=?",
             (bet_id, str(ctx.guild.id)),
         )
         bet = c.fetchone()
         if not bet:
-            await ctx.send(embed=error_embed(f"Bet #{bet_id} not found."))
+            await wizard_msg.edit(embed=error_embed(f"Bet #{bet_id} not found."))
             return
-
         bet_id_db, desc, status = bet
         if status != "open":
-            await ctx.send(embed=error_embed(f"Bet #{bet_id_db} is not open."))
+            await wizard_msg.edit(embed=error_embed(f"Bet #{bet_id_db} is not open."))
             return
-
         c.execute(
             "SELECT 1 FROM wagers WHERE bet_id=? AND user_id=?",
             (bet_id_db, str(ctx.author.id)),
         )
         if c.fetchone():
-            await ctx.send(embed=error_embed("You already placed a wager on this bet."))
+            await wizard_msg.edit(embed=error_embed("You already placed a wager on this bet."))
             return
 
         c.execute(
@@ -340,89 +351,77 @@ class Betting(commands.Cog):
         )
         options = c.fetchall()
         if not options:
-            await ctx.send(embed=error_embed("This bet has no outcomes configured."))
+            await wizard_msg.edit(embed=error_embed("This bet has no outcomes configured."))
             return
 
-        opt_lines = []
-        for idx, (option_id, name, total_amount) in enumerate(options, start=1):
-            opt_lines.append(f"{idx}. {name} — Current pool: {total_amount}")
-
-        msg_choice = await get_reply_or_cancel(
-            self.bot,
-            ctx,
-            f"Bet #{bet_id_db}: **{desc}**\n"
-            "Reply with the **number** of the outcome you want to bet on:\n"
-            + "\n".join(opt_lines)
-        )
-        if msg_choice is None:
+        opt_lines = [f"{idx}. {name} — Current pool: {amt}" for idx, (_, name, amt) in enumerate(options, start=1)]
+        choice_str = await ask(info_embed(
+            "🎲 Place a Bet",
+            f"Bet #{bet_id_db}: **{desc}**\nChoose your outcome:\n" + "\n".join(opt_lines),
+            discord.Color.blue(),
+        ))
+        if choice_str is None:
             return
 
         try:
-            choice_idx = int(msg_choice.content.strip())
+            choice_idx = int(choice_str)
         except ValueError:
-            await ctx.send(embed=error_embed("You must reply with a number corresponding to an outcome."))
+            await wizard_msg.edit(embed=error_embed("You must reply with a number."))
             return
-
         if not (1 <= choice_idx <= len(options)):
-            await ctx.send(embed=error_embed("That choice is out of range."))
+            await wizard_msg.edit(embed=error_embed("That choice is out of range."))
             return
 
         option_id, option_name, _ = options[choice_idx - 1]
 
-        msg_amt = await get_reply_or_cancel(
-            self.bot,
-            ctx,
-            f"💰 How many monies do you want to bet on **{option_name}**?"
-        )
-        if msg_amt is None:
+        amount_str = await ask(info_embed(
+            "🎲 Place a Bet",
+            f"💰 How many monies do you want to bet on **{option_name}**?",
+            discord.Color.blue(),
+        ))
+        if amount_str is None:
             return
 
         try:
-            amount = int(msg_amt.content.strip())
+            amount = int(amount_str)
         except ValueError:
-            await ctx.send(embed=error_embed("Bet amount must be a whole number."))
+            await wizard_msg.edit(embed=error_embed("Bet amount must be a whole number."))
             return
-
         if amount <= 0:
-            await ctx.send(embed=error_embed("Bet amount must be positive."))
+            await wizard_msg.edit(embed=error_embed("Bet amount must be positive."))
             return
 
         user_monies = get_user_monies(ctx.author.id, ctx.guild.id)
         if user_monies < amount:
-            await ctx.send(embed=error_embed(f"Insufficient monies! You have {user_monies} monies."))
+            await wizard_msg.edit(embed=error_embed(f"Insufficient monies! You have {user_monies} monies."))
             return
 
         c.execute(
-            "INSERT INTO wagers (bet_id, option_id, user_id, amount) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT INTO wagers (bet_id, option_id, user_id, amount) VALUES (?, ?, ?, ?)",
             (bet_id_db, option_id, str(ctx.author.id), amount),
         )
         c.execute(
             "UPDATE bet_options SET total_amount = total_amount + ? WHERE option_id=?",
             (amount, option_id),
         )
-
         update_monies(ctx.author.id, ctx.guild.id, user_monies - amount)
         conn.commit()
 
         c.execute("SELECT total_amount FROM bet_options WHERE bet_id=?", (bet_id_db,))
         pools = [row[0] for row in c.fetchall()]
         total_pool = sum(pools)
-
         c.execute("SELECT total_amount FROM bet_options WHERE option_id=?", (option_id,))
         this_pool = c.fetchone()[0]
-
         odds = total_pool / this_pool if this_pool > 0 else 1.0
         est_payout = int(amount * odds)
 
-        embed = info_embed(
+        await wizard_msg.edit(embed=info_embed(
             "✅ Bet Placed",
             f"{ctx.author.mention} bet **{amount}** on **{option_name}** "
             f"for Bet #{bet_id_db}.\n"
             f"Potential payout: **{est_payout}** monies ({odds:.2f}x).",
             discord.Color.green()
-        )
-        await ctx.send(embed=embed)
+        ))
 
     @commands.command(name="resolve", help="Resolve a bet: !resolve <bet_id>")
     async def resolve_bet(self, ctx, bet_id: int):
