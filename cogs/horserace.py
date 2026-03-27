@@ -157,8 +157,7 @@ class HorseRace(commands.Cog):
                 "bets": {},
             })
 
-        loop = asyncio.get_event_loop()
-        win_rates = await loop.run_in_executor(None, estimate_win_rates, horses)
+        win_rates = await asyncio.to_thread(estimate_win_rates, horses)
 
         self.active_races[guild_id] = {
             "horses": horses,
