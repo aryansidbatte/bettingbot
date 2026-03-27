@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 
@@ -68,45 +69,65 @@ class Betting(commands.Cog):
             await ctx.send(embed=embed)
             return
 
-        msg_desc = await get_reply_or_cancel(
-            self.bot,
-            ctx,
-            "📝 What is the bet **description**?\nExample: `Who will win the game?`"
-        )
-        if msg_desc is None:
-            return
-        description = msg_desc.content.strip()
+        def check(m):
+            return m.author == ctx.author and m.channel == ctx.channel
 
-        msg_count = await get_reply_or_cancel(
-            self.bot,
-            ctx,
-            "🔢 How many **outcomes** does this bet have? (minimum 2, maximum 10)"
-        )
-        if msg_count is None:
+        async def ask(prompt_embed):
+            """Edit the wizard message with prompt_embed, wait for a reply. Returns content string or None."""
+            await wizard_msg.edit(content=None, embed=prompt_embed)
+            try:
+                msg = await self.bot.wait_for("message", timeout=60.0, check=check)
+            except asyncio.TimeoutError:
+                await wizard_msg.edit(
+                    embed=error_embed("Timed out. Please run the command again.")
+                )
+                return None
+            if msg.content.strip().lower() == "cancel":
+                await wizard_msg.edit(
+                    embed=info_embed("❌ Cancelled", "Bet creation cancelled.", discord.Color.orange())
+                )
+                return None
+            return msg.content.strip()
+
+        wizard_msg = await ctx.send(embed=info_embed("🎲 Create a Bet", "Starting…", discord.Color.green()))
+
+        description = await ask(info_embed(
+            "🎲 Create a Bet",
+            "📝 What is the bet **description**?\nExample: `Who will win the game?`",
+            discord.Color.green(),
+        ))
+        if description is None:
+            return
+
+        count_str = await ask(info_embed(
+            "🎲 Create a Bet",
+            "🔢 How many **outcomes** does this bet have? (minimum 2, maximum 10)",
+            discord.Color.green(),
+        ))
+        if count_str is None:
             return
 
         try:
-            num_outcomes = int(msg_count.content.strip())
+            num_outcomes = int(count_str)
         except ValueError:
-            await ctx.send(embed=error_embed("Please enter a valid number (2–10)."))
+            await wizard_msg.edit(embed=error_embed("Please enter a valid number (2–10)."))
             return
 
         if num_outcomes < 2 or num_outcomes > 10:
-            await ctx.send(embed=error_embed("Number of outcomes must be between 2 and 10."))
+            await wizard_msg.edit(embed=error_embed("Number of outcomes must be between 2 and 10."))
             return
 
         option_names = []
         for i in range(1, num_outcomes + 1):
-            msg_opt = await get_reply_or_cancel(
-                self.bot,
-                ctx,
-                f"✏️ Enter name for **Outcome #{i}**:"
-            )
-            if msg_opt is None:
+            name = await ask(info_embed(
+                "🎲 Create a Bet",
+                f"✏️ Enter name for **Outcome #{i}**:",
+                discord.Color.green(),
+            ))
+            if name is None:
                 return
-            name = msg_opt.content.strip()
             if not name:
-                await ctx.send(embed=error_embed("Outcome name cannot be empty."))
+                await wizard_msg.edit(embed=error_embed("Outcome name cannot be empty."))
                 return
             option_names.append(name)
 
@@ -126,7 +147,6 @@ class Betting(commands.Cog):
 
         c.execute("SELECT option_id, name FROM bet_options WHERE bet_id=?", (bet_id,))
         options = c.fetchall()
-
         lines = [f"{idx}. {name}" for idx, (option_id, name) in enumerate(options, start=1)]
 
         embed = info_embed("🎲 New Bet Created!", "", discord.Color.green())
@@ -138,8 +158,7 @@ class Betting(commands.Cog):
             value="Use `!bet` and follow the prompts to choose this bet and an outcome.",
             inline=False,
         )
-
-        await ctx.send(embed=embed)
+        await wizard_msg.edit(embed=embed)
 
     @commands.command(name="bets", help="View all active bets and their outcomes")
     async def view_bets(self, ctx):
