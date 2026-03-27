@@ -37,7 +37,7 @@ class Betting(commands.Cog):
                 description, option_names = parse_instant_bet(args)
             except ValueError as e:
                 await ctx.send(embed=error_embed(
-                    f"{e}\nUsage: `!createbet description | outcome 1 | outcome 2`"
+                    f"{e}\n\nUsage:\n• `!createbet description | outcome 1 | outcome 2`\n• Or just `!createbet` for guided setup"
                 ))
                 return
 
