@@ -1,5 +1,5 @@
 import pytest
-from cogs.horserace import simulate_race, build_progress_bar, format_race_progress, estimate_win_rates
+from cogs.horserace import simulate_race, build_progress_bar, format_race_progress, estimate_win_rates, _best_fraction, to_fractional_odds
 
 
 def make_horses(weights=None, staminas=None, consistencies=None):
@@ -141,57 +141,112 @@ class TestEstimateWinRates:
         assert rates[1] > rates[2]
 
 
-class TestPayoutMath:
-    """Test parimutuel payout calculations directly (mirrors logic in _run_race)."""
+class TestBestFraction:
+    def test_evens_returns_one_one(self):
+        n, d = _best_fraction(0.5)
+        assert n / d == pytest.approx(1.0, abs=0.1)
 
-    def _calc_payouts(self, all_bets, winner_num):
+    def test_heavy_favourite_returns_short_odds(self):
+        # 80% win rate → very short odds (less than evens)
+        n, d = _best_fraction(0.8)
+        assert n / d < 1.0
+
+    def test_longshot_returns_long_odds(self):
+        # 5% win rate → long odds
+        n, d = _best_fraction(0.05)
+        assert n / d > 5.0
+
+    def test_zero_win_rate_returns_100_1(self):
+        assert _best_fraction(0.0) == (100, 1)
+
+    def test_returns_tuple_of_two_ints(self):
+        result = _best_fraction(0.33)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert all(isinstance(x, int) for x in result)
+
+    def test_fraction_is_from_standard_list(self):
+        from cogs.horserace import _STANDARD_FRACTIONS
+        result = _best_fraction(0.4)
+        assert result in _STANDARD_FRACTIONS
+
+
+class TestToFractionalOdds:
+    def test_returns_string_with_dash(self):
+        result = to_fractional_odds(0.5)
+        assert "-" in result
+
+    def test_format_is_n_dash_d(self):
+        result = to_fractional_odds(0.33)
+        parts = result.split("-")
+        assert len(parts) == 2
+        assert all(p.isdigit() for p in parts)
+
+    def test_zero_win_rate_returns_100_1(self):
+        assert to_fractional_odds(0.0) == "100-1"
+
+    def test_consistent_with_best_fraction(self):
+        n, d = _best_fraction(0.4)
+        assert to_fractional_odds(0.4) == f"{n}-{d}"
+
+
+class TestFixedOddsPayoutMath:
+    """Test fixed-odds payout logic (mirrors _run_race after the parimutuel→fixed-odds change)."""
+
+    def _calc_fixed_payouts(self, all_bets, winner_num, win_rate):
         """
         all_bets: {user_id: (horse_num, amount)}
-        Returns {user_id: payout} for winners only.
+        Returns {user_id: total_return} for winners only.
+        total_return = stake + profit = stake * (1 + n/d)
         """
-        total_pool = sum(amt for _, amt in all_bets.values())
-        winning_bets = {
-            uid: amt for uid, (num, amt) in all_bets.items() if num == winner_num
-        }
-        winning_total = sum(winning_bets.values())
-        if winning_total == 0:
+        winning_bets = {uid: amt for uid, (num, amt) in all_bets.items() if num == winner_num}
+        if not winning_bets:
             return {}
-        return {
-            uid: int((amt / winning_total) * total_pool)
-            for uid, amt in winning_bets.items()
-        }
+        n, d = _best_fraction(win_rate)
+        multiplier = n / d
+        return {uid: amt + int(amt * multiplier) for uid, amt in winning_bets.items()}
 
-    def test_sole_winner_gets_entire_pool(self):
-        all_bets = {"u1": (1, 100), "u2": (2, 200)}
-        payouts = self._calc_payouts(all_bets, winner_num=1)
-        assert payouts == {"u1": 300}
+    def test_winner_gets_stake_plus_profit(self):
+        # 2-1 odds: bet 100 → return 300 (100 stake + 200 profit)
+        n, d = _best_fraction(0.33)  # ~2-1
+        multiplier = n / d
+        payouts = self._calc_fixed_payouts({"u1": (1, 100), "u2": (2, 50)}, winner_num=1, win_rate=0.33)
+        assert payouts["u1"] == 100 + int(100 * multiplier)
 
-    def test_two_winners_split_pool_proportionally(self):
-        all_bets = {"u1": (1, 100), "u2": (1, 300), "u3": (2, 200)}
-        payouts = self._calc_payouts(all_bets, winner_num=1)
-        total_pool = 600
-        assert payouts["u1"] == int((100 / 400) * total_pool)  # 150
-        assert payouts["u2"] == int((300 / 400) * total_pool)  # 450
-
-    def test_payouts_sum_to_total_pool(self):
-        all_bets = {"u1": (1, 50), "u2": (1, 150), "u3": (2, 100)}
-        payouts = self._calc_payouts(all_bets, winner_num=1)
-        # int truncation may cause off-by-one, allow 1 point variance
-        assert abs(sum(payouts.values()) - 300) <= 1
+    def test_loser_gets_nothing(self):
+        payouts = self._calc_fixed_payouts({"u1": (1, 100), "u2": (2, 50)}, winner_num=1, win_rate=0.33)
+        assert "u2" not in payouts
 
     def test_no_bets_on_winner_returns_empty(self):
-        all_bets = {"u1": (2, 100)}
-        payouts = self._calc_payouts(all_bets, winner_num=1)
+        payouts = self._calc_fixed_payouts({"u1": (2, 100)}, winner_num=1, win_rate=0.5)
         assert payouts == {}
 
-    def test_equal_bets_split_evenly(self):
-        all_bets = {"u1": (1, 100), "u2": (1, 100), "u3": (2, 100)}
-        payouts = self._calc_payouts(all_bets, winner_num=1)
-        assert payouts["u1"] == payouts["u2"]
-
-    def test_empty_pool_returns_empty(self):
-        payouts = self._calc_payouts({}, winner_num=1)
+    def test_empty_bets_returns_empty(self):
+        payouts = self._calc_fixed_payouts({}, winner_num=1, win_rate=0.5)
         assert payouts == {}
+
+    def test_multiple_winners_each_paid_independently(self):
+        # Both bet on winner — each gets their own fixed payout, not split
+        payouts = self._calc_fixed_payouts(
+            {"u1": (1, 100), "u2": (1, 200), "u3": (2, 300)},
+            winner_num=1, win_rate=0.5
+        )
+        assert "u1" in payouts
+        assert "u2" in payouts
+        assert "u3" not in payouts
+        # u2 bet 2x u1, so u2 payout should be 2x u1 payout
+        assert payouts["u2"] == payouts["u1"] * 2
+
+    def test_favourite_pays_less_than_longshot(self):
+        bet = 100
+        favourite_payout = self._calc_fixed_payouts({"u1": (1, bet)}, winner_num=1, win_rate=0.8)
+        longshot_payout = self._calc_fixed_payouts({"u1": (1, bet)}, winner_num=1, win_rate=0.1)
+        assert longshot_payout["u1"] > favourite_payout["u1"]
+
+    def test_payout_always_at_least_stake(self):
+        # Even at shortest odds, winner always gets their stake back
+        payouts = self._calc_fixed_payouts({"u1": (1, 100)}, winner_num=1, win_rate=0.99)
+        assert payouts["u1"] >= 100
 
 
 class TestFormatRaceProgress:

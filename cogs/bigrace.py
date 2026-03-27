@@ -18,7 +18,7 @@ from database import (
 )
 from helpers import info_embed, error_embed
 from cogs.horserace import (
-    simulate_race, estimate_win_rates, to_fractional_odds,
+    simulate_race, estimate_win_rates, to_fractional_odds, _best_fraction,
     format_race_progress,
     HORSE_NAMES, HORSE_IMAGES,
 )
@@ -148,9 +148,13 @@ class BigRace(commands.Cog):
         update_carats(user_id, guild_id, carats - amount)
         horse["bets"][user_id] = amount
 
+        n, d = _best_fraction(race["win_rates"][horse_number])
+        potential_payout = amount + int(amount * n / d)
+
         await ctx.send(embed=info_embed(
             "✅ Bet Placed",
-            f"{ctx.author.mention} bet **{amount}** carats on **#{horse_number} {horse['name']}**!",
+            f"{ctx.author.mention} bet **{amount}** carats on **#{horse_number} {horse['name']}**!\n"
+            f"Potential payout: **{potential_payout}** carats",
             discord.Color.green(),
         ))
 
@@ -203,15 +207,18 @@ class BigRace(commands.Cog):
             for i, name in enumerate(names, start=1)
         ]
 
+        loop = asyncio.get_event_loop()
+        win_rates = await loop.run_in_executor(None, estimate_win_rates, horses)
+
         self.active_big_races[guild_id] = {
             "horses": horses,
             "channel_id": channel_id,
             "betting_open": True,
+            "win_rates": win_rates,
         }
 
         try:
             # Build and send betting embed
-            win_rates = estimate_win_rates(horses)
             favourite_num = max(win_rates, key=win_rates.get)
             lines = []
             for h in horses:
@@ -244,7 +251,7 @@ class BigRace(commands.Cog):
                     value=horse_field_value,
                     inline=False,
                 )
-                e.set_footer(text="Odds are estimates only — actual payout is parimutuel. Bets use carats.")
+                e.set_footer(text="Odds are fixed at race start. Bets use carats.")
                 e.set_thumbnail(url="attachment://carat.png")
                 return e
 
@@ -288,9 +295,12 @@ class BigRace(commands.Cog):
                 for uid, amt in h["bets"].items():
                     all_bets[uid] = (h["number"], amt)
 
-            total_pool = sum(amt for _, amt in all_bets.values())
             winning_bets = {uid: amt for uid, (num, amt) in all_bets.items() if num == winner_num}
-            winning_total = sum(winning_bets.values())
+
+            race_win_rates = race["win_rates"]
+            n, d = _best_fraction(race_win_rates[winner_num])
+            odds_multiplier = n / d
+            frac_str = to_fractional_odds(race_win_rates[winner_num])
 
             medals = ["🥇", "🥈", "🥉"]
             podium_lines = []
@@ -300,19 +310,15 @@ class BigRace(commands.Cog):
                 podium_lines.append(f"{medal} **#{num} {h['name']}**")
 
             payout_lines = []
-            if total_pool == 0:
+            if not all_bets:
                 payout_lines.append("No bets were placed — just a fun race!")
-            elif winning_total == 0:
-                for uid, (_, amt) in all_bets.items():
-                    carats = get_user_carats(uid, guild_id)
-                    update_carats(uid, guild_id, carats + amt)
-                payout_lines.append(
-                    f"No one bet on **#{winner_num} {winner['name']}** — all carats refunded!"
-                )
+            elif not winning_bets:
+                payout_lines.append(f"No one bet on **#{winner_num} {winner['name']}** — no payouts.")
             else:
                 guild_obj = self.bot.get_guild(guild_id)
                 for uid, amt in winning_bets.items():
-                    payout = int((amt / winning_total) * total_pool)
+                    profit = int(amt * odds_multiplier)
+                    payout = amt + profit
                     carats = get_user_carats(uid, guild_id)
                     update_carats(uid, guild_id, carats + payout)
                     if guild_obj:
@@ -320,7 +326,7 @@ class BigRace(commands.Cog):
                         display = member.display_name if member else f"<@{uid}>"
                     else:
                         display = f"<@{uid}>"
-                    payout_lines.append(f"💰 {display}: **+{payout}** carats (bet {amt})")
+                    payout_lines.append(f"💰 {display}: **+{profit}** carats (bet {amt} @ {frac_str})")
 
             result_embed = discord.Embed(
                 title=f"🏁 {winner['name']} wins the Daily Big Race!",

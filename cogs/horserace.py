@@ -86,16 +86,21 @@ _STANDARD_FRACTIONS = [
 ]
 
 
+def _best_fraction(win_rate: float) -> tuple:
+    """Return the (numerator, denominator) of the nearest standard fraction."""
+    if win_rate <= 0:
+        return (100, 1)
+    raw = (1 - win_rate) / win_rate
+    return min(_STANDARD_FRACTIONS, key=lambda f: abs(f[0] / f[1] - raw))
+
+
 def to_fractional_odds(win_rate: float) -> str:
     """Convert a win rate (0-1) to the nearest standard fractional odds string."""
-    if win_rate <= 0:
-        return "100-1"
-    raw = (1 - win_rate) / win_rate  # e.g. 0.33 → 2.03
-    best = min(_STANDARD_FRACTIONS, key=lambda f: abs(f[0] / f[1] - raw))
-    return f"{best[0]}-{best[1]}"
+    n, d = _best_fraction(win_rate)
+    return f"{n}-{d}"
 
 
-def estimate_win_rates(horses: list, trials: int = 300) -> dict:
+def estimate_win_rates(horses: list, trials: int = 1000) -> dict:
     """Run the simulation `trials` times. Returns {horse_number: win_rate}.
 
     Uses Laplace smoothing so no horse ever gets a 0% or 100% rate,
@@ -152,13 +157,15 @@ class HorseRace(commands.Cog):
                 "bets": {},
             })
 
+        loop = asyncio.get_event_loop()
+        win_rates = await loop.run_in_executor(None, estimate_win_rates, horses)
+
         self.active_races[guild_id] = {
             "horses": horses,
             "channel_id": ctx.channel.id,
             "betting_open": True,
+            "win_rates": win_rates,
         }
-
-        win_rates = estimate_win_rates(horses)
         favourite_num = max(win_rates, key=win_rates.get)
         lines = []
         for h in horses:
@@ -187,7 +194,7 @@ class HorseRace(commands.Cog):
             color=discord.Color.gold(),
         )
         embed.add_field(name="🔥 Weight  🔋 Stamina  🎯 Consistency", value="\n".join(lines), inline=False)
-        embed.set_footer(text="Odds are estimates only — actual payout is parimutuel.")
+        embed.set_footer(text="Odds are fixed at race start.")
 
         announce_msg = await ctx.send(embed=embed)
         await asyncio.sleep(60)
@@ -198,7 +205,7 @@ class HorseRace(commands.Cog):
             color=discord.Color.dark_gold(),
         )
         closed_embed.add_field(name="🔥 Weight  🔋 Stamina  🎯 Consistency", value="\n".join(lines), inline=False)
-        closed_embed.set_footer(text="Odds are estimates only — actual payout is parimutuel.")
+        closed_embed.set_footer(text="Odds are fixed at race start.")
         await announce_msg.edit(embed=closed_embed)
 
         await self._run_race(ctx, guild_id)
@@ -245,14 +252,14 @@ class HorseRace(commands.Cog):
         update_monies(user_id, guild_id, user_monies - amount)
         horse["bets"][user_id] = amount
 
-        win_rates = estimate_win_rates(horses)
-        frac = to_fractional_odds(win_rates[horse_number])
+        n, d = _best_fraction(race["win_rates"][horse_number])
+        potential_payout = amount + int(amount * n / d)
 
         embed = info_embed(
             "✅ Bet Placed",
             f"{ctx.author.mention} bet **{amount}** monies on "
             f"**#{horse_number} {horse['name']}**!\n"
-            f"Morning line odds: **{frac}**",
+            f"Potential payout: **{potential_payout}** monies",
             discord.Color.green(),
         )
         await ctx.send(embed=embed)
@@ -292,9 +299,11 @@ class HorseRace(commands.Cog):
             for uid, amt in h["bets"].items():
                 all_bets[uid] = (h["number"], amt)
 
-        total_pool = sum(amt for _, amt in all_bets.values())
         winning_bets = {uid: amt for uid, (num, amt) in all_bets.items() if num == winner_num}
-        winning_total = sum(winning_bets.values())
+
+        win_rates = race["win_rates"]
+        n, d = _best_fraction(win_rates[winner_num])
+        odds_multiplier = n / d  # profit multiplier, e.g. 2-1 → 2.0x profit
 
         medals = ["🥇", "🥈", "🥉"]
         podium_lines = []
@@ -304,18 +313,15 @@ class HorseRace(commands.Cog):
             podium_lines.append(f"{medal} **#{num} {h['name']}**")
 
         payout_lines = []
-        if total_pool == 0:
+        if not all_bets:
             payout_lines.append("No bets were placed — just a fun race!")
-        elif winning_total == 0:
-            for uid, (_, amt) in all_bets.items():
-                pts = get_user_monies(uid, guild_id)
-                update_monies(uid, guild_id, pts + amt)
-            payout_lines.append(
-                f"No one bet on **#{winner_num} {winner['name']}** — all bets refunded!"
-            )
+        elif not winning_bets:
+            payout_lines.append(f"No one bet on **#{winner_num} {winner['name']}** — no payouts.")
         else:
+            frac_str = to_fractional_odds(win_rates[winner_num])
             for uid, amt in winning_bets.items():
-                payout = int((amt / winning_total) * total_pool)
+                profit = int(amt * odds_multiplier)
+                payout = amt + profit
                 pts = get_user_monies(uid, guild_id)
                 update_monies(uid, guild_id, pts + payout)
                 try:
@@ -323,7 +329,7 @@ class HorseRace(commands.Cog):
                     display = member.display_name
                 except Exception:
                     display = f"<@{uid}>"
-                payout_lines.append(f"💰 {display}: **+{payout}** monies (bet {amt})")
+                payout_lines.append(f"💰 {display}: **+{profit}** monies (bet {amt} @ {frac_str})")
 
         embed = discord.Embed(
             title=f"🏁 {winner['name']} wins the race!",
