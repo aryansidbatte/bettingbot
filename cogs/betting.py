@@ -4,6 +4,27 @@ from discord.ext import commands
 from database import c, conn, get_user_monies, update_monies
 from helpers import info_embed, error_embed, get_reply_or_cancel
 
+
+def parse_instant_bet(args: str) -> tuple:
+    """Parse 'description | outcome1 | outcome2 ...' into (description, [outcomes]).
+    Raises ValueError with a user-facing message on invalid input.
+    """
+    parts = [p.strip() for p in args.split("|")]
+    description = parts[0]
+    outcomes = parts[1:]
+
+    if not description:
+        raise ValueError("Description can't be empty.")
+    if len(outcomes) < 2:
+        raise ValueError("Need at least 2 outcomes.")
+    if len(outcomes) > 10:
+        raise ValueError("Maximum 10 outcomes.")
+    if any(o == "" for o in outcomes):
+        raise ValueError("Outcome names can't be empty.")
+
+    return description, outcomes
+
+
 class Betting(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
