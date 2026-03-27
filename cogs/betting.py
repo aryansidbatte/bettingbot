@@ -29,8 +29,47 @@ class Betting(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="createbet", help="Interactively create a bet with multiple outcomes")
-    async def create_bet(self, ctx):
+    @commands.command(name="createbet", help="Create a bet: !createbet desc | o1 | o2  or just !createbet for guided setup")
+    async def create_bet(self, ctx, *, args: str = ""):
+        if args:
+            try:
+                description, option_names = parse_instant_bet(args)
+            except ValueError as e:
+                await ctx.send(embed=error_embed(
+                    f"{e}\nUsage: `!createbet description | outcome 1 | outcome 2`"
+                ))
+                return
+
+            c.execute(
+                "INSERT INTO bets (guild_id, creator_id, description) VALUES (?, ?, ?)",
+                (str(ctx.guild.id), str(ctx.author.id), description),
+            )
+            conn.commit()
+            bet_id = c.lastrowid
+
+            for name in option_names:
+                c.execute(
+                    "INSERT INTO bet_options (bet_id, name) VALUES (?, ?)",
+                    (bet_id, name),
+                )
+            conn.commit()
+
+            c.execute("SELECT option_id, name FROM bet_options WHERE bet_id=?", (bet_id,))
+            options = c.fetchall()
+            lines = [f"{idx}. {name}" for idx, (option_id, name) in enumerate(options, start=1)]
+
+            embed = info_embed("🎲 New Bet Created!", "", discord.Color.green())
+            embed.add_field(name="Bet ID", value=f"#{bet_id}", inline=False)
+            embed.add_field(name="Description", value=description, inline=False)
+            embed.add_field(name="Outcomes", value="\n".join(lines), inline=False)
+            embed.add_field(
+                name="How to Bet",
+                value="Use `!bet` and follow the prompts to choose this bet and an outcome.",
+                inline=False,
+            )
+            await ctx.send(embed=embed)
+            return
+
         msg_desc = await get_reply_or_cancel(
             self.bot,
             ctx,
