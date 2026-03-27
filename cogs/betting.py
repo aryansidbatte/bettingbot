@@ -54,9 +54,7 @@ class Betting(commands.Cog):
                 )
             conn.commit()
 
-            c.execute("SELECT option_id, name FROM bet_options WHERE bet_id=?", (bet_id,))
-            options = c.fetchall()
-            lines = [f"{idx}. {name}" for idx, (option_id, name) in enumerate(options, start=1)]
+            lines = [f"{idx}. {name}" for idx, name in enumerate(option_names, start=1)]
 
             embed = info_embed("🎲 New Bet Created!", "", discord.Color.green())
             embed.add_field(name="Bet ID", value=f"#{bet_id}", inline=False)
