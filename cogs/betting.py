@@ -76,6 +76,7 @@ class Betting(commands.Cog):
 
         async def ask(prompt_embed):
             """Edit the wizard message with prompt_embed, wait for a reply. Returns content string or None."""
+            prompt_embed.set_footer(text="Type 'cancel' at any time to exit.")
             await wizard_msg.edit(content=None, embed=prompt_embed)
             try:
                 msg = await self.bot.wait_for("message", timeout=60.0, check=check)
@@ -290,6 +291,7 @@ class Betting(commands.Cog):
             return m.author == ctx.author and m.channel == ctx.channel
 
         async def ask(prompt_embed):
+            prompt_embed.set_footer(text="Type 'cancel' at any time to exit.")
             await wizard_msg.edit(content=None, embed=prompt_embed)
             try:
                 msg = await self.bot.wait_for("message", timeout=60.0, check=check)
@@ -523,6 +525,7 @@ class Betting(commands.Cog):
             return m.author == ctx.author and m.channel == ctx.channel
 
         async def ask(prompt_embed):
+            prompt_embed.set_footer(text="Type 'cancel' at any time to exit.")
             await wizard_msg.edit(content=None, embed=prompt_embed)
             try:
                 msg = await self.bot.wait_for("message", timeout=60.0, check=check)
