@@ -69,6 +69,8 @@ class Betting(commands.Cog):
             await ctx.send(embed=embed)
             return
 
+        wizard_msg = await ctx.send(embed=info_embed("🎲 Create a Bet", "Starting…", discord.Color.green()))
+
         def check(m):
             return m.author == ctx.author and m.channel == ctx.channel
 
@@ -88,8 +90,6 @@ class Betting(commands.Cog):
                 )
                 return None
             return msg.content.strip()
-
-        wizard_msg = await ctx.send(embed=info_embed("🎲 Create a Bet", "Starting…", discord.Color.green()))
 
         description = await ask(info_embed(
             "🎲 Create a Bet",
