@@ -41,8 +41,9 @@ class Misc(commands.Cog):
         embed.add_field(
             name="!createbet",
             value=(
-                "Interactively create a new bet with multiple outcomes.\n"
-                "You'll be asked for description and outcome names. Type `cancel` to cancel."
+                "Create a new bet with multiple outcomes.\n"
+                "• `!createbet description | outcome 1 | outcome 2` — instant\n"
+                "• `!createbet` — guided setup"
             ),
             inline=False
         )
@@ -54,16 +55,18 @@ class Misc(commands.Cog):
         embed.add_field(
             name="!bet",
             value=(
-                "Interactively place a bet on an active bet.\n"
-                "You'll pick a Bet ID, an outcome, and an amount. Type `cancel` to cancel."
+                "Place a wager on an active bet.\n"
+                "• `!bet <bet_id> <outcome_number> <amount>` — instant\n"
+                "• `!bet` — guided setup"
             ),
             inline=False
         )
         embed.add_field(
-            name="!resolve <bet_id>",
+            name="!resolve",
             value=(
-                "Resolve a bet you created. You'll choose the winning outcome.\n"
-                "If no one bet on it, all wagers are refunded."
+                "Resolve a bet you created and distribute winnings.\n"
+                "• `!resolve <bet_id> <outcome_number>` — instant\n"
+                "• `!resolve` — guided setup"
             ),
             inline=False
         )
@@ -71,7 +74,7 @@ class Misc(commands.Cog):
             name="!race",
             value=(
                 "Start a simulated Uma Musume horse race with a 60-second betting window.\n"
-                "4–6 horses are randomly selected with parimutuel odds. Bets use monies."
+                "4–6 horses are randomly selected with fixed odds. Bets use monies."
             ),
             inline=False
         )
