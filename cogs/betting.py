@@ -210,8 +210,80 @@ class Betting(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(name="bet", help="Interactively place a bet on any outcome")
-    async def place_bet(self, ctx):
+    @commands.command(name="bet", help="Place a bet: !bet <bet_id> <outcome_number> <amount>  or just !bet for guided setup")
+    async def place_bet(self, ctx, bet_id: int = None, outcome_num: int = None, amount: int = None):
+        provided = [x for x in (bet_id, outcome_num, amount) if x is not None]
+        if 0 < len(provided) < 3:
+            await ctx.send(embed=error_embed(
+                "Usage:\n• `!bet <bet_id> <outcome_number> <amount>`\n• Or just `!bet` for guided setup"
+            ))
+            return
+
+        if bet_id is not None:
+            c.execute(
+                "SELECT bet_id, description, status FROM bets WHERE bet_id=? AND guild_id=?",
+                (bet_id, str(ctx.guild.id)),
+            )
+            bet = c.fetchone()
+            if not bet:
+                await ctx.send(embed=error_embed(f"Bet #{bet_id} not found."))
+                return
+            bet_id_db, desc, status = bet
+            if status != "open":
+                await ctx.send(embed=error_embed(f"Bet #{bet_id_db} is not open."))
+                return
+            c.execute(
+                "SELECT 1 FROM wagers WHERE bet_id=? AND user_id=?",
+                (bet_id_db, str(ctx.author.id)),
+            )
+            if c.fetchone():
+                await ctx.send(embed=error_embed("You already placed a wager on this bet."))
+                return
+            c.execute(
+                "SELECT option_id, name, total_amount FROM bet_options WHERE bet_id=?",
+                (bet_id_db,),
+            )
+            options = c.fetchall()
+            if not options:
+                await ctx.send(embed=error_embed("This bet has no outcomes configured."))
+                return
+            if not (1 <= outcome_num <= len(options)):
+                await ctx.send(embed=error_embed(f"Outcome must be between 1 and {len(options)}."))
+                return
+            if amount <= 0:
+                await ctx.send(embed=error_embed("Bet amount must be positive."))
+                return
+            user_monies = get_user_monies(ctx.author.id, ctx.guild.id)
+            if user_monies < amount:
+                await ctx.send(embed=error_embed(f"Insufficient monies! You have {user_monies} monies."))
+                return
+            option_id, option_name, _ = options[outcome_num - 1]
+            c.execute(
+                "INSERT INTO wagers (bet_id, option_id, user_id, amount) VALUES (?, ?, ?, ?)",
+                (bet_id_db, option_id, str(ctx.author.id), amount),
+            )
+            c.execute(
+                "UPDATE bet_options SET total_amount = total_amount + ? WHERE option_id=?",
+                (amount, option_id),
+            )
+            update_monies(ctx.author.id, ctx.guild.id, user_monies - amount)
+            conn.commit()
+            c.execute("SELECT total_amount FROM bet_options WHERE bet_id=?", (bet_id_db,))
+            pools = [row[0] for row in c.fetchall()]
+            total_pool = sum(pools)
+            c.execute("SELECT total_amount FROM bet_options WHERE option_id=?", (option_id,))
+            this_pool = c.fetchone()[0]
+            odds = total_pool / this_pool if this_pool > 0 else 1.0
+            est_payout = int(amount * odds)
+            await ctx.send(embed=info_embed(
+                "✅ Bet Placed",
+                f"{ctx.author.mention} bet **{amount}** on **{option_name}** "
+                f"for Bet #{bet_id_db}.\n"
+                f"Potential payout: **{est_payout}** monies ({odds:.2f}x).",
+                discord.Color.green()
+            ))
+            return
+
         c.execute(
             "SELECT bet_id, description FROM bets WHERE guild_id=? AND status='open'",
             (str(ctx.guild.id),),
