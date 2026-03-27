@@ -149,7 +149,7 @@ class BigRace(commands.Cog):
         horse["bets"][user_id] = amount
 
         n, d = _best_fraction(race["win_rates"][horse_number])
-        potential_payout = amount + int(amount * n / d)
+        potential_payout = amount + round(amount * n / d)
 
         await ctx.send(embed=info_embed(
             "✅ Bet Placed",
@@ -317,7 +317,7 @@ class BigRace(commands.Cog):
             else:
                 guild_obj = self.bot.get_guild(guild_id)
                 for uid, amt in winning_bets.items():
-                    profit = int(amt * odds_multiplier)
+                    profit = round(amt * odds_multiplier)
                     payout = amt + profit
                     carats = get_user_carats(uid, guild_id)
                     update_carats(uid, guild_id, carats + payout)
