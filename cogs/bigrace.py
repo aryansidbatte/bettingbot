@@ -265,6 +265,7 @@ class BigRace(commands.Cog):
                 remaining = betting_window - elapsed
                 await betting_msg.edit(embed=_build_betting_embed(f"{remaining} seconds"))
             await asyncio.sleep(interval)  # final interval to reach 0
+            await betting_msg.edit(embed=_build_betting_embed("0 seconds"))
 
             race = self.active_big_races.get(guild_id)
             if race is None:
