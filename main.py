@@ -20,6 +20,15 @@ database.setup_db()
 async def on_ready():
     print(f"{bot.user} has connected to Discord!")
 
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ You don't have permission to use that command.")
+    elif isinstance(error, commands.CommandNotFound):
+        pass
+    else:
+        raise error
+
 async def main():
     async with bot:
         # Load cogs
