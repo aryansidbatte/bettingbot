@@ -427,6 +427,14 @@ class Betting(commands.Cog):
 
     async def _do_resolve(self, ctx, bet_id_db: int, winning_option_id: int, winning_name: str, send_result):
         """Run bet payout logic. send_result(embed) is called with the final result embed."""
+        c.execute("SELECT status FROM bets WHERE bet_id=?", (bet_id_db,))
+        row = c.fetchone()
+        if not row or row[0] != "open":
+            await send_result(embed=error_embed("This bet has already been resolved."))
+            return
+        c.execute("UPDATE bets SET status='closed' WHERE bet_id=?", (bet_id_db,))
+        conn.commit()
+
         c.execute("SELECT user_id, option_id, amount FROM wagers WHERE bet_id=?", (bet_id_db,))
         wagers = c.fetchall()
 
@@ -436,8 +444,6 @@ class Betting(commands.Cog):
                 "No wagers were placed on this bet. Closing it with no payouts.",
                 discord.Color.orange()
             ))
-            c.execute("UPDATE bets SET status='closed' WHERE bet_id=?", (bet_id_db,))
-            conn.commit()
             return
 
         total_pool = sum(amt for _, _, amt in wagers)
@@ -464,9 +470,6 @@ class Betting(commands.Cog):
                 f"Winnings distributed to **{len(winners)}** winner(s).",
                 discord.Color.green()
             ))
-
-        c.execute("UPDATE bets SET status='closed' WHERE bet_id=?", (bet_id_db,))
-        conn.commit()
 
     @commands.command(name="resolve", help="Resolve a bet: !resolve <bet_id> <outcome_number>  or just !resolve for guided setup")
     async def resolve_bet(self, ctx, bet_id: int = None, outcome_num: int = None):
