@@ -40,7 +40,7 @@ class BigRace(commands.Cog):
     # Scheduler                                                           #
     # ------------------------------------------------------------------ #
 
-    @tasks.loop(time=datetime.time(21, 0, tzinfo=_PT))
+    @tasks.loop(time=datetime.time(0, 0, tzinfo=_PT))
     async def daily_race(self):
         rows = get_all_race_configs()
         for guild_id, channel_id in rows:
@@ -96,7 +96,7 @@ class BigRace(commands.Cog):
         if enrolled:
             await ctx.send(embed=info_embed(
                 "✅ You're In!",
-                "You'll be pinged before the daily big race at 9pm PT.",
+                "You'll be pinged before the daily big race at 12am PT.",
                 discord.Color.green(),
             ))
         else:
