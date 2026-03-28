@@ -198,6 +198,12 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Terraform
+terraform/terraform.tfvars
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+
 # macOS
 .DS_Store
 
