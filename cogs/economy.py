@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from datetime import datetime, timedelta
 
-from database import c, conn, get_user_monies, update_monies, add_daily_reward, get_user_carats
+from database import c, conn, _PH, get_user_monies, update_monies, add_daily_reward, get_user_carats
 from helpers import info_embed, error_embed
 
 class Economy(commands.Cog):
@@ -24,7 +24,7 @@ class Economy(commands.Cog):
     @commands.command(name="leaderboard", aliases=["lb", "top"], help="Show the top 10 users by monies")
     async def leaderboard(self, ctx):
         c.execute(
-            "SELECT user_id, monies FROM users WHERE guild_id=? "
+            f"SELECT user_id, monies FROM users WHERE guild_id={_PH} "
             "ORDER BY monies DESC LIMIT 10",
             (str(ctx.guild.id),),
         )
@@ -53,7 +53,7 @@ class Economy(commands.Cog):
     @commands.command(name="caratboard", aliases=["cb"], help="Show the top 10 users by carats")
     async def caratboard(self, ctx):
         c.execute(
-            "SELECT user_id, carats FROM users WHERE guild_id=? "
+            f"SELECT user_id, carats FROM users WHERE guild_id={_PH} "
             "ORDER BY carats DESC LIMIT 10",
             (str(ctx.guild.id),),
         )
@@ -86,7 +86,7 @@ class Economy(commands.Cog):
 
         now = datetime.now()
         c.execute(
-            "SELECT monies, last_daily FROM users WHERE user_id=? AND guild_id=?",
+            f"SELECT monies, last_daily FROM users WHERE user_id={_PH} AND guild_id={_PH}",
             (user_id, guild_id),
         )
         result = c.fetchone()
@@ -122,7 +122,7 @@ class Economy(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     async def force_daily(self, ctx):
         c.execute(
-            "UPDATE users SET monies=monies+100, carats=carats+10 WHERE guild_id=?",
+            f"UPDATE users SET monies=monies+100, carats=carats+10 WHERE guild_id={_PH}",
             (str(ctx.guild.id),),
         )
         conn.commit()

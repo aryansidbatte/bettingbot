@@ -5,6 +5,9 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 import database
+from logger import get_logger
+
+_log = get_logger(__name__)
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -18,7 +21,7 @@ database.setup_db()
 
 @bot.event
 async def on_ready():
-    print(f"{bot.user} has connected to Discord!")
+    _log.info(f"Bot ready: {bot.user}")
 
 @bot.event
 async def on_command_error(ctx, error):

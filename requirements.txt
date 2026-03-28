@@ -12,3 +12,4 @@ propcache==0.4.1
 python-dotenv==1.2.1
 yarl==1.22.0
 backports.zoneinfo; python_version < "3.9"
+psycopg2-binary==2.9.10
