@@ -91,7 +91,7 @@
   Enter when prompted:
   - AWS Access Key ID: (from the CSV you downloaded)
   - AWS Secret Access Key: (from the CSV)
-  - Default region name: `us-east-1`
+  - Default region name: `us-west-1`
   - Default output format: `json`
 
   Verify it works:
@@ -132,14 +132,14 @@ Terraform needs somewhere to store its state file. S3 is the standard choice. Th
   ```bash
   aws s3api create-bucket \
     --bucket bettingbot-terraform-state-YOUR_ACCOUNT_ID \
-    --region us-east-1
+    --region us-west-1
   ```
 
   Example if your account ID is `123456789012`:
   ```bash
   aws s3api create-bucket \
     --bucket bettingbot-terraform-state-123456789012 \
-    --region us-east-1
+    --region us-west-1
   ```
 
 - [ ] **Step 2: Enable versioning on the bucket**
@@ -231,7 +231,7 @@ Terraform needs somewhere to store its state file. S3 is the standard choice. Th
     backend "s3" {
       bucket = "bettingbot-terraform-state-YOUR_ACCOUNT_ID"
       key    = "terraform.tfstate"
-      region = "us-east-1"
+      region = "us-west-1"
     }
   }
 
@@ -245,7 +245,7 @@ Terraform needs somewhere to store its state file. S3 is the standard choice. Th
   ```hcl
   variable "aws_region" {
     description = "AWS region to deploy into"
-    default     = "us-east-1"
+    default     = "us-west-1"
   }
 
   variable "app_name" {
@@ -700,10 +700,10 @@ Terraform needs somewhere to store its state file. S3 is the standard choice. Th
   Apply complete! Resources: 25 added, 0 changed, 0 destroyed.
 
   Outputs:
-  ecr_repository_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/bettingbot"
+  ecr_repository_url = "123456789012.dkr.ecr.us-west-1.amazonaws.com/bettingbot"
   ecs_cluster_name   = "bettingbot"
   ecs_service_name   = "bettingbot"
-  rds_endpoint       = "bettingbot-db.xxxx.us-east-1.rds.amazonaws.com:5432"
+  rds_endpoint       = "bettingbot-db.xxxx.us-west-1.rds.amazonaws.com:5432"
   ```
 
   **Copy these output values — you need them in later tasks.**
@@ -1164,7 +1164,7 @@ Terraform needs somewhere to store its state file. S3 is the standard choice. Th
   |------|-------|
   | `AWS_ACCESS_KEY_ID` | Your IAM user access key ID (from Task 1 CSV) |
   | `AWS_SECRET_ACCESS_KEY` | Your IAM user secret access key (from Task 1 CSV) |
-  | `AWS_REGION` | `us-east-1` |
+  | `AWS_REGION` | `us-west-1` |
 
   Each secret: click **New repository secret**, enter the name and value, click **Add secret**.
 
