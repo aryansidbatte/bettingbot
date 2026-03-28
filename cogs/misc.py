@@ -89,14 +89,14 @@ class Misc(commands.Cog):
         embed.add_field(
             name="!setracechannel [#channel]",
             value=(
-                "*(Requires Manage Server)* Set the channel for the daily 9pm PT big race.\n"
+                "*(Requires Manage Server)* Set the channel for the daily 12am PT big race.\n"
                 "No args shows the current setting."
             ),
             inline=False
         )
         embed.add_field(
             name="!racenotify",
-            value="Toggle whether you get pinged before the daily big race at 9pm PT.",
+            value="Toggle whether you get pinged before the daily big race at 12am PT.",
             inline=False
         )
         embed.add_field(
