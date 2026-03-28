@@ -211,3 +211,4 @@ terraform/*.tfstate.backup
 .claude/
 .claude-flow/
 .mcp.json
+.superpowers/
