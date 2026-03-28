@@ -194,7 +194,9 @@ Terraform needs somewhere to store its state file. S3 is the standard choice. Th
   docker build -t bettingbot:local .
   ```
 
-  Expected: `Successfully built ...` with no errors. If you see import errors or missing files, fix them before continuing.
+  Expected: `Successfully built ...` with no errors.
+
+  **Note:** If you see `ERROR: Could not find a version of audioop-lts`, remove it from `requirements.txt` — it requires Python 3.13+ and is not needed on 3.11. If you see import errors or missing files, fix them before continuing.
 
 - [ ] **Step 4: Commit**
 
@@ -314,7 +316,7 @@ Terraform needs somewhere to store its state file. S3 is the standard choice. Th
   resource "aws_subnet" "private_b" {
     vpc_id            = aws_vpc.main.id
     cidr_block        = "10.0.3.0/24"
-    availability_zone = "${var.aws_region}b"
+    availability_zone = "${var.aws_region}c"
     tags = { Name = "${var.app_name}-private-b" }
   }
 
@@ -476,7 +478,7 @@ Terraform needs somewhere to store its state file. S3 is the standard choice. Th
 
     publicly_accessible     = false
     skip_final_snapshot     = true
-    backup_retention_period = 7
+    backup_retention_period = 0
 
     tags = { Name = "${var.app_name}-db" }
   }
@@ -1211,7 +1213,6 @@ Terraform needs somewhere to store its state file. S3 is the standard choice. Th
           uses: aws-actions/amazon-ecr-login@v2
 
         - name: Build, tag, and push image to ECR
-          id: build-image
           env:
             ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
             ECR_REPOSITORY: bettingbot
@@ -1219,30 +1220,19 @@ Terraform needs somewhere to store its state file. S3 is the standard choice. Th
           run: |
             docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
             docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-            echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-        - name: Download current ECS task definition
-          run: |
-            aws ecs describe-task-definition \
-              --task-definition bettingbot \
-              --query taskDefinition \
-              > task-definition.json
-
-        - name: Update image in task definition
-          id: task-def
-          uses: aws-actions/amazon-ecs-render-task-def@v1
-          with:
-            task-definition: task-definition.json
-            container-name: bettingbot
-            image: ${{ steps.build-image.outputs.image }}
 
         - name: Deploy to ECS
-          uses: aws-actions/amazon-ecs-deploy-task-def@v2
-          with:
-            task-definition: ${{ steps.task-def.outputs.task-definition }}
-            service: bettingbot
-            cluster: bettingbot
-            wait-for-service-stability: true
+          env:
+            ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+            ECR_REPOSITORY: bettingbot
+            IMAGE_TAG: ${{ github.sha }}
+          run: |
+            TASK_DEF=$(aws ecs describe-task-definition --task-definition bettingbot --query taskDefinition --output json)
+            NEW_TASK_DEF=$(echo $TASK_DEF | jq --arg IMAGE "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+              '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.placementConstraints,.compatibilities,.registeredAt,.registeredBy)')
+            NEW_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF" --query taskDefinition.taskDefinitionArn --output text)
+            aws ecs update-service --cluster bettingbot --service bettingbot --task-definition $NEW_ARN
+            aws ecs wait services-stable --cluster bettingbot --services bettingbot
   ```
 
 - [ ] **Step 2: Commit and push to `main`**
