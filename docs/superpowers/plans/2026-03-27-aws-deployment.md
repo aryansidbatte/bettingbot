@@ -130,24 +130,18 @@ Terraform needs somewhere to store its state file. S3 is the standard choice. Th
   Replace `YOUR_ACCOUNT_ID` with your 12-digit AWS account ID (visible in `aws sts get-caller-identity`):
 
   ```bash
-  aws s3api create-bucket \
-    --bucket bettingbot-terraform-state-YOUR_ACCOUNT_ID \
-    --region us-west-1
+  aws s3api create-bucket --bucket bettingbot-terraform-state-YOUR_ACCOUNT_ID --region us-west-1 --create-bucket-configuration LocationConstraint=us-west-1
   ```
 
   Example if your account ID is `123456789012`:
   ```bash
-  aws s3api create-bucket \
-    --bucket bettingbot-terraform-state-123456789012 \
-    --region us-west-1
+  aws s3api create-bucket --bucket bettingbot-terraform-state-123456789012 --region us-west-1 --create-bucket-configuration LocationConstraint=us-west-1
   ```
 
 - [ ] **Step 2: Enable versioning on the bucket**
 
   ```bash
-  aws s3api put-bucket-versioning \
-    --bucket bettingbot-terraform-state-YOUR_ACCOUNT_ID \
-    --versioning-configuration Status=Enabled
+  aws s3api put-bucket-versioning --bucket bettingbot-terraform-state-YOUR_ACCOUNT_ID --versioning-configuration Status=Enabled
   ```
 
 - [ ] **Step 3: Note your bucket name**
@@ -1425,9 +1419,7 @@ Do this after the GitHub Actions deploy (Task 16) succeeds and the bot is runnin
 
   ```bash
   source venv/bin/activate
-  SQLITE_PATH=./betting_pi.db \
-  DATABASE_URL="postgresql://bettingbot:PASSWORD@RDS_ENDPOINT/bettingbot" \
-  python scripts/migrate_sqlite_to_postgres.py
+  SQLITE_PATH=./betting_pi.db DATABASE_URL="postgresql://bettingbot:PASSWORD@RDS_ENDPOINT/bettingbot" python scripts/migrate_sqlite_to_postgres.py
   ```
 
   Expected output:
@@ -1446,8 +1438,7 @@ Do this after the GitHub Actions deploy (Task 16) succeeds and the bot is runnin
 - [ ] **Step 4: Verify data in Postgres**
 
   ```bash
-  psql "postgresql://bettingbot:PASSWORD@RDS_ENDPOINT/bettingbot" \
-    -c "SELECT COUNT(*) FROM users;"
+  psql "postgresql://bettingbot:PASSWORD@RDS_ENDPOINT/bettingbot" -c "SELECT COUNT(*) FROM users;"
   ```
 
   Count should match what you saw in the migration output.
