@@ -1,0 +1,130 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36" version="29.6.6">
+  <diagram id="P2kHjLg0-4z-QKdZ5ISb" name="Page-1">
+    <mxGraphModel dx="1288" dy="828" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" background="light-dark(#0F1117,#000000)" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="bUMEeLReFNk_Z3QiYtch-36" connectable="0" parent="1" style="group;flipH=0;legacyAnchorPoints=0;" value="" vertex="1">
+          <mxGeometry height="390" width="890" x="140" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="2" parent="bUMEeLReFNk_Z3QiYtch-36" style="text;html=1;align=center;verticalAlign=top;spacingTop=6;rounded=1;arcSize=4;fontSize=10;fontStyle=1;letterSpacing=1;fillColor=light-dark(#173D4D, #161d2e);strokeColor=light-dark(#10739e, #2d3a52);" value="&lt;font style=&quot;color: light-dark(rgb(75, 85, 99), rgb(75, 85, 99));&quot;&gt;CI / CD&lt;/font&gt;" vertex="1">
+          <mxGeometry height="390" width="192" x="184" as="geometry" />
+        </mxCell>
+        <mxCell id="3" parent="bUMEeLReFNk_Z3QiYtch-36" style="text;html=1;align=center;verticalAlign=top;spacingTop=6;rounded=1;arcSize=4;fontSize=10;fontStyle=1;letterSpacing=1;fillColor=light-dark(#b1ddf0, #141d2b);strokeColor=light-dark(#10739e, #1f395f);" value="&lt;font style=&quot;color: light-dark(rgb(34, 85, 197), rgb(34, 85, 197));&quot;&gt;AMAZON WEB SERVICES&lt;/font&gt;" vertex="1">
+          <mxGeometry height="390" width="464" x="426" as="geometry" />
+        </mxCell>
+        <mxCell id="4" parent="bUMEeLReFNk_Z3QiYtch-36" style="shape=mxgraph.basic.person;fillColor=none;strokeColor=none;fontColor=#cbd5e1;html=1;align=center;verticalAlign=bottom;" value="&lt;font style=&quot;&quot;&gt;&lt;b&gt;&lt;font style=&quot;color: light-dark(rgb(255, 255, 255), rgb(255, 255, 255));&quot;&gt;Developer&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;/font&gt;&lt;span style=&quot;color: rgb(100, 116, 139); font-size: 10px;&quot;&gt;git push&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="60" x="28" y="169" as="geometry" />
+        </mxCell>
+        <mxCell id="5" parent="bUMEeLReFNk_Z3QiYtch-36" style="rounded=1;whiteSpace=wrap;html=1;fillColor=light-dark(#1A2130,#1A2130);strokeColor=light-dark(#2D3748,#2D3748);fontColor=#cbd5e1;arcSize=10;" value="&lt;b&gt;&lt;font style=&quot;color: light-dark(rgb(255, 255, 255), rgb(255, 255, 255));&quot;&gt;GitHub&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;color: rgb(100, 116, 139); font-size: 10px;&quot;&gt;main branch&lt;/span&gt;" vertex="1">
+          <mxGeometry height="56" width="116" y="238" as="geometry" />
+        </mxCell>
+        <mxCell id="6" parent="bUMEeLReFNk_Z3QiYtch-36" style="rounded=1;whiteSpace=wrap;html=1;fillColor=light-dark(#1e2a3d, #1f2a3d);strokeColor=light-dark(#2d3f5c, #2b3850);fontColor=#cbd5e1;arcSize=10;" value="&lt;font style=&quot;color: light-dark(rgb(255, 255, 255), rgb(255, 255, 255));&quot;&gt;&lt;b&gt;Run Tests&lt;/b&gt;&lt;br&gt;&lt;/font&gt;&lt;span style=&quot;color: rgb(100, 116, 139); font-size: 10px;&quot;&gt;pytest · 124 tests&lt;br&gt;Python 3.11&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="160" x="200" y="38" as="geometry" />
+        </mxCell>
+        <mxCell id="7" parent="bUMEeLReFNk_Z3QiYtch-36" style="rounded=1;whiteSpace=wrap;html=1;fillColor=light-dark(#1e2a3d, #1f2a3d);strokeColor=light-dark(#2B3850,#2B3850);fontColor=#cbd5e1;arcSize=10;" value="&lt;font style=&quot;color: light-dark(rgb(255, 255, 255), rgb(255, 255, 255));&quot;&gt;&lt;b&gt;Build Image&lt;/b&gt;&lt;br&gt;&lt;/font&gt;&lt;span style=&quot;color: rgb(100, 116, 139); font-size: 10px;&quot;&gt;docker build&lt;br&gt;push to ECR&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="160" x="200" y="169" as="geometry" />
+        </mxCell>
+        <mxCell id="8" parent="bUMEeLReFNk_Z3QiYtch-36" style="rounded=1;whiteSpace=wrap;html=1;fillColor=light-dark(#1e2a3d, #1f2a3d);strokeColor=light-dark(#2B3850,#2B3850);fontColor=#cbd5e1;arcSize=10;" value="&lt;b&gt;&lt;font style=&quot;color: light-dark(rgb(255, 255, 255), rgb(255, 255, 255));&quot;&gt;Deploy&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;color: rgb(100, 116, 139); font-size: 10px;&quot;&gt;register task def&lt;br&gt;update ECS service&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="160" x="200" y="304" as="geometry" />
+        </mxCell>
+        <mxCell id="9" parent="bUMEeLReFNk_Z3QiYtch-36" style="rounded=1;whiteSpace=wrap;html=1;fillColor=light-dark(#cce5ff, #1a2d4a);strokeColor=light-dark(#36393d, #1e4ed8);arcSize=10;strokeWidth=1;" value="&lt;font&gt;&lt;b&gt;&lt;font style=&quot;color: light-dark(rgb(203, 213, 225), rgb(255, 255, 255));&quot;&gt;ECR&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;/font&gt;&lt;span style=&quot;color: rgb(100, 116, 139); font-size: 10px;&quot;&gt;Container Registry&lt;br&gt;versioned image store&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="150" x="451" y="38" as="geometry" />
+        </mxCell>
+        <mxCell id="10" parent="bUMEeLReFNk_Z3QiYtch-36" style="rounded=1;whiteSpace=wrap;html=1;fillColor=light-dark(#cdeb8b, #162a1e);strokeColor=light-dark(#36393d, #17803c);arcSize=10;" value="&lt;span&gt;&lt;font&gt;&lt;font&gt;&lt;b&gt;&lt;font style=&quot;&quot;&gt;ECS Fargate&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;/font&gt;&lt;span style=&quot;font-size: 10px; color: rgb(100, 116, 139);&quot;&gt;Discord bot container&lt;br&gt;0.25 vCPU · 512 MB RAM&lt;br&gt;python:3.11-slim image&lt;br&gt;rolling deploy · 1 task&lt;/span&gt;&lt;/font&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="160" x="446" y="154" as="geometry" />
+        </mxCell>
+        <mxCell id="11" parent="bUMEeLReFNk_Z3QiYtch-36" style="rounded=1;whiteSpace=wrap;html=1;fillColor=light-dark(#22163A, #22163a);strokeColor=light-dark(#6d28d9, #6d29d9);fontColor=#cbd5e1;arcSize=10;" value="&lt;font style=&quot;color: light-dark(rgb(255, 255, 255), rgb(255, 255, 255));&quot;&gt;&lt;b&gt;Secrets Manager&lt;/b&gt;&lt;br&gt;&lt;/font&gt;&lt;span style=&quot;color: rgb(100, 116, 139); font-size: 10px;&quot;&gt;DISCORD_TOKEN&lt;br&gt;DATABASE_URL&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="155" x="716.5" y="169" as="geometry" />
+        </mxCell>
+        <mxCell id="12" parent="bUMEeLReFNk_Z3QiYtch-36" style="rounded=1;whiteSpace=wrap;html=1;fillColor=light-dark(#162212, #152211);strokeColor=light-dark(#15803D, #17803c);fontColor=#cbd5e1;arcSize=10;" value="&lt;font style=&quot;color: light-dark(rgb(255, 255, 255), rgb(255, 255, 255));&quot;&gt;&lt;b&gt;RDS Postgres&lt;/b&gt;&lt;br&gt;&lt;/font&gt;&lt;span style=&quot;color: rgb(100, 116, 139); font-size: 10px;&quot;&gt;db.t3.micro · private subnet&lt;br&gt;users · bets · wagers&lt;/span&gt;" vertex="1">
+          <mxGeometry height="72" width="155" x="716.5" y="296" as="geometry" />
+        </mxCell>
+        <mxCell id="13" parent="bUMEeLReFNk_Z3QiYtch-36" style="rounded=1;whiteSpace=wrap;html=1;fillColor=light-dark(#251C0C, #251c0c);strokeColor=light-dark(#b45309, #b4530a);fontColor=#cbd5e1;arcSize=10;" value="&lt;font style=&quot;color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&lt;b&gt;CloudWatch&lt;/b&gt;&lt;br&gt;&lt;/font&gt;&lt;span style=&quot;color: rgb(100, 116, 139); font-size: 10px;&quot;&gt;JSON structured logs&lt;br&gt;crash alerts via SNS&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="155" x="448.5" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="14" parent="bUMEeLReFNk_Z3QiYtch-36" style="rounded=1;whiteSpace=wrap;html=1;fillColor=light-dark(#15163A, #15163a);strokeColor=light-dark(#4F46E5, #4f46e5);fontColor=#cbd5e1;arcSize=10;" value="&lt;font style=&quot;color: light-dark(rgb(255, 255, 255), rgb(255, 255, 255));&quot;&gt;&lt;b&gt;Discord&lt;/b&gt;&lt;br&gt;&lt;/font&gt;&lt;span style=&quot;color: rgb(100, 116, 139); font-size: 10px;&quot;&gt;Gateway API&lt;br&gt;WebSocket conn.&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="120" x="734" y="38" as="geometry" />
+        </mxCell>
+        <mxCell id="20" edge="1" parent="bUMEeLReFNk_Z3QiYtch-36" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#4b5563;" target="6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="160" y="208" />
+              <mxPoint x="160" y="73" />
+            </Array>
+            <mxPoint x="120" y="208" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="21" edge="1" parent="bUMEeLReFNk_Z3QiYtch-36" source="6" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#4b5563;" target="7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="22" edge="1" parent="bUMEeLReFNk_Z3QiYtch-36" source="7" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#4b5563;" target="8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="23" edge="1" parent="bUMEeLReFNk_Z3QiYtch-36" source="7" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#3b82f6;dashed=1;dashPattern=8 4;fontColor=#3b82f6;fontSize=9;labelBackgroundColor=none;labelPosition=center;verticalLabelPosition=middle;align=center;verticalAlign=middle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" value="push">
+          <mxGeometry relative="1" x="0.0813" y="20" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="414" y="204" />
+              <mxPoint x="414" y="73" />
+            </Array>
+            <mxPoint x="414" y="178" as="sourcePoint" />
+            <mxPoint x="451" y="72.99999999999989" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="24" edge="1" parent="bUMEeLReFNk_Z3QiYtch-36" source="9" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#3b82f6;fontColor=#3b82f6;fontSize=9;labelBackgroundColor=none;" target="10" value="pull">
+          <mxGeometry relative="1" x="-0.1304" y="-12" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="25" edge="1" parent="bUMEeLReFNk_Z3QiYtch-36" source="8" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#4b5563;" target="10">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="414" y="339" />
+              <mxPoint x="414" y="204" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="26" edge="1" parent="bUMEeLReFNk_Z3QiYtch-36" source="11" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#a855f7;dashed=1;dashPattern=6 4;fontColor=#a855f7;fontSize=9;labelBackgroundColor=none;" target="10" value="fetch at startup">
+          <mxGeometry relative="1" x="-0.0498" y="-6" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="27" edge="1" parent="bUMEeLReFNk_Z3QiYtch-36" source="10" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#22c55e;fontColor=#22c55e;fontSize=9;" target="12">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="644" y="228" />
+              <mxPoint x="644" y="332" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="28" edge="1" parent="bUMEeLReFNk_Z3QiYtch-36" source="10" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#f59e0b;dashed=1;dashPattern=6 4;fontColor=#f59e0b;fontSize=9;labelBackgroundColor=none;" target="13" value="logs">
+          <mxGeometry relative="1" x="-0.1429" y="-12" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="29" edge="1" parent="bUMEeLReFNk_Z3QiYtch-36" source="10" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6366f1;fontColor=#818cf8;fontSize=9;labelBackgroundColor=none;" target="14" value="commands &amp; responses">
+          <mxGeometry relative="1" x="0.7425" y="-55" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="644" y="178" />
+              <mxPoint x="644" y="73" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="bUMEeLReFNk_Z3QiYtch-31" parent="bUMEeLReFNk_Z3QiYtch-36" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" value="" vertex="1">
+          <mxGeometry height="70" width="40" x="38" y="88" as="geometry" />
+        </mxCell>
+        <mxCell id="bUMEeLReFNk_Z3QiYtch-37" connectable="0" parent="1" style="group" value="" vertex="1">
+          <mxGeometry height="52" width="340" x="415" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="bUMEeLReFNk_Z3QiYtch-32" parent="bUMEeLReFNk_Z3QiYtch-37" style="text;strokeColor=none;fillColor=none;html=1;fontSize=15;fontStyle=1;verticalAlign=middle;align=center;" value="Bettingbot&amp;nbsp;— AWS Architecture" vertex="1">
+          <mxGeometry height="40" width="100" x="120" as="geometry" />
+        </mxCell>
+        <mxCell id="bUMEeLReFNk_Z3QiYtch-33" parent="bUMEeLReFNk_Z3QiYtch-37" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=12;fontColor=light-dark(default, #64748b);" value="&lt;font style=&quot;color: light-dark(rgb(100, 116, 139), rgb(100, 116, 139));&quot;&gt;Discord bot deployed on ECS Fargate with automated CI/CD&lt;/font&gt;" vertex="1">
+          <mxGeometry height="30" width="340" y="22" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
